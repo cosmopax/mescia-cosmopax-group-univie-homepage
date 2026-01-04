@@ -1,0 +1,5 @@
+# Codex Tasks: mescia-cosmopax-group-univie-homepage
+
+- [x] Review CENTRAL_INSTRUCTIONS.md
+- [x] Verify build environment.
+- [x] Check deploy.sh paths.

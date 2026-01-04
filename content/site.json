@@ -1,7 +1,17 @@
 {
-    "site_name": "Mescia Cosmopax Group",
-    "site_tagline": "University of Vienna",
-    "meta_description": "Mescia Cosmopax Group Research",
-    "domain": "https://mescia-cosmopax-group.univie.ac.at",
-    "layout_variant": "mescia_landing"
+  "site_name": "Mescia Cosmopax Group",
+  "site_tagline": "University of Vienna",
+  "meta_description": "Mescia Cosmopax Group Research",
+  "domain": "https://mescia-cosmopax-group.univie.ac.at",
+  "layout_variant": "swarm",
+  "theme": {
+    "primary": "#0d5c63",
+    "primary_dark": "#062e32",
+    "primary_bright": "#148e99",
+    "background": "#f0fdff",
+    "paper": "#ffffff",
+    "accent": "#4fd1c5",
+    "text_main": "#1a1a1a",
+    "text_muted": "#4a5568"
+  }
 }
