@@ -1,21 +1,23 @@
 {
-  "site_name": "Mescia Cosmopax Group",
-  "site_tagline": "University of Vienna",
-  "meta_description": "Mescia Cosmopax Group Research",
-  "domain": "https://mescia-cosmopax-group.univie.ac.at",
-  "layout_variant": "swarm",
-  "logo_text": "Mescia",
-  "nav_cta_text": "Enter the network",
-  "nav_cta_target": "research",
-  "contact_blurb": "We design distributed intelligence systems, exploring coordination, cryptoeconomics, and emergent governance across synthetic ecologies.",
-  "theme": {
-    "primary": "#20d6c7",
-    "primary_dark": "#0b2f33",
-    "primary_bright": "#6af7e4",
-    "background": "#0b1116",
-    "paper": "#101821",
-    "accent": "#ffb84d",
-    "text_main": "#e6f3f7",
-    "text_muted": "#8fa7b5"
-  }
+    "site_name": "Mescia Cosmopax Group",
+    "site_tagline": "University of Vienna",
+    "meta_description": "Mescia Cosmopax Group Research",
+    "domain": "https://mescia-cosmopax-group.univie.ac.at",
+    "site_notice": "This digital habit is mutating. We are enhancing the substrate while maintaining full operational capacity. Mind the wet paint and shifting geometries.",
+    "layout_variant": "swarm",
+    "logo_text": "Mescia",
+    "nav_cta_text": "Enter the network",
+    "nav_cta_target": "research",
+    "contact_blurb": "We design distributed intelligence systems, exploring coordination, cryptoeconomics, and emergent governance across synthetic ecologies.",
+    "theme": {
+        "primary": "#20d6c7",
+        "primary_dark": "#0b2f33",
+        "primary_bright": "#6af7e4",
+        "background": "#0b1116",
+        "paper": "#101821",
+        "accent": "#ffb84d",
+        "text_main": "#e6f3f7",
+        "text_muted": "#8fa7b5"
+    },
+    "og_image": "https://mescia-cosmopax-group.univie.ac.at/assets/img/og-image.jpg"
 }
