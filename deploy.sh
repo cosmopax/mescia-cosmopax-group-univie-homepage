@@ -50,10 +50,7 @@ shopt -u dotglob nullglob
 
 echo "  - Copying new site..."
 if command -v rsync >/dev/null 2>&1; then
-  if ! rsync -av "$SITE_DIR/" "$WEBROOT/"; then
-    echo "Warning: rsync failed. Falling back to cp -a..."
-    cp -a "$SITE_DIR/." "$WEBROOT/"
-  fi
+  rsync -av "$SITE_DIR/" "$WEBROOT/"
 else
   cp -a "$SITE_DIR/." "$WEBROOT/"
 fi
