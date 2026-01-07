@@ -7,6 +7,7 @@ import json
 import os
 import re
 import shutil
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Any
@@ -571,6 +572,9 @@ def _render_header(current_slug: str, pages: dict[str, dict[str, object]], curre
     burger_nav_items.append(f'<a href="{_escape(cta_href)}">{_escape(cta_text)}</a>')
 
     return f"""
+<div class="construction-banner">
+  <span>🚧 <strong>Beta Protocol:</strong> This platform is evolving live. Content is provisional.</span>
+</div>
 <header class="site-header">
   <div class="header-left">
       <a class="logo" href="{_escape(_rel_page_link(current_path, ""))}">{_escape(logo_text)}</a>
@@ -684,6 +688,7 @@ def _render_project_grid_v2(section: dict[str, str], current_path: Path, pages: 
     overlays = []
     overlay_cache: dict[str, str] = {}
     image_cache: dict[str, str] = {}
+    tile_index = 0
     
     for proj in projects:
         t = proj.get("title", "")
@@ -761,19 +766,31 @@ def _render_project_grid_v2(section: dict[str, str], current_path: Path, pages: 
         if link_target.startswith(("http://", "https://")):
             action_label = "Visit"
         alt_media = ""
+        tile_class = f"profile-tile profile-tile--{_escape(tier)} project-card-v2 scroll-reveal"
+        float_offset = f"{(tile_index % 7) * 0.55:.2f}"
+        tile_style_parts = [f"--float-offset: {float_offset};"]
         if alt_image:
             alt_media = f"<div class=\"tile-media tile-media--alt\" style=\"background-image: url('{_escape(alt_image)}')\"></div>"
+            tile_class += " has-deck"
+            deck_delay = f"{(tile_index % 4) * 1.5:.1f}s"
+            tile_style_parts.append(f"--deck-delay: {deck_delay};")
+        tile_style = f" style=\"{' '.join(tile_style_parts)}\""
         card_html = f"""
-<a href="{link_target}" class="profile-tile profile-tile--{_escape(tier)} project-card-v2 scroll-reveal" data-tier="{_escape(tier)}" {action_attr}>
-  <div class="tile-media" style="background-image: url('{_escape(primary_image)}')"></div>
-  {alt_media}
-  <div class="tile-scrim"></div>
-  <div class="tile-content">
-    <h3>{_escape(t)}</h3>
-    {keywords_block}
-    <span class="tile-action">{action_label}</span>
+<a href="{link_target}" class="{tile_class}" data-tier="{_escape(tier)}"{tile_style} {action_attr}>
+  <span class="tile-stack tile-stack--one"></span>
+  <span class="tile-stack tile-stack--two"></span>
+  <div class="tile-surface">
+    <div class="tile-media" style="background-image: url('{_escape(primary_image)}')"></div>
+    {alt_media}
+    <div class="tile-scrim"></div>
+    <div class="tile-content">
+      <h3>{_escape(t)}</h3>
+      {keywords_block}
+      <span class="tile-action">{action_label}</span>
+    </div>
   </div>
 </a>"""
+        tile_index += 1
         if tier == "upper":
             upper_cards.append(card_html)
         else:
@@ -1066,10 +1083,27 @@ def _render_digest_page(digest: dict[str, str], pages: dict[str, dict[str, objec
     footer = _render_footer(site, pages, current_path, links)
     back_link = _rel_page_link(current_path, "digest")
     body_html = _render_markdown(_read_block(digest.get("source_md", "")))
+    
+    # Search UI
+    search_css = f'<link rel="stylesheet" href="{_escape(_rel_link(current_path, Path("assets/css/search.css")))}" />'
+    search_ui = f"""
+  <div class="search-container">
+    <div class="search-box">
+      <div class="search-input-wrapper">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Search..." autocomplete="off" />
+        <span class="search-shortcut">Ctrl+K</span>
+      </div>
+      <div id="search-results"></div>
+    </div>
+  </div>
+"""
+    
     doc = f"""<!doctype html>
 <html lang=\"en\">
-{_render_head(digest.get('title', ''), css_href, site.get('meta_description', ''))}
+{_render_head(digest.get('title', ''), css_href, site.get('meta_description', ''), extra_css=search_css)}
 <body data-newsletter-mode="{_escape(site.get('newsletter_mode', 'local'))}" data-newsletter-url="{_escape(site.get('newsletter_provider_url', ''))}">
+  {search_ui}
   <div class="page-shell">
     {header}
     <main>
@@ -1090,6 +1124,7 @@ def _render_digest_page(digest: dict[str, str], pages: dict[str, dict[str, objec
     {footer}
   </div>
   <script src="{_escape(_rel_link(current_path, Path('assets/js/main.js')))}"></script>
+  <script src="{_escape(_rel_link(current_path, Path("assets/js/search.js")))}"></script>
 </body>
 </html>
 """
@@ -1107,10 +1142,27 @@ def _render_blog_post(post: dict[str, str], pages: dict[str, dict[str, object]])
     footer = _render_footer(site, pages, current_path, _read_links())
     back_link = _rel_page_link(current_path, "blog")
     body_html = _render_paragraphs(post.get("body", ""))
+    
+    # Search UI
+    search_css = f'<link rel="stylesheet" href="{_escape(_rel_link(current_path, Path("assets/css/search.css")))}" />'
+    search_ui = f"""
+  <div class="search-container">
+    <div class="search-box">
+      <div class="search-input-wrapper">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Search..." autocomplete="off" />
+        <span class="search-shortcut">Ctrl+K</span>
+      </div>
+      <div id="search-results"></div>
+    </div>
+  </div>
+"""
+    
     doc = f"""<!doctype html>
 <html lang=\"en\">
-{_render_head(post.get('title', ''), css_href, _read_site_config().get('meta_description', ''))}
+{_render_head(post.get('title', ''), css_href, _read_site_config().get('meta_description', ''), extra_css=search_css)}
 <body data-newsletter-mode="{_escape(_read_site_config().get('newsletter_mode', 'local'))}" data-newsletter-url="{_escape(_read_site_config().get('newsletter_provider_url', ''))}">
+  {search_ui}
   <div class="page-shell">
     {header}
     <main>
@@ -1131,6 +1183,7 @@ def _render_blog_post(post: dict[str, str], pages: dict[str, dict[str, object]])
     {footer}
   </div>
   <script src="{_escape(_rel_link(current_path, Path('assets/js/main.js')))}"></script>
+  <script src="{_escape(_rel_link(current_path, Path("assets/js/search.js")))}"></script>
 </body>
 </html>
 """
@@ -1433,12 +1486,16 @@ main {{ flex: 1; padding-top: 80px; width: 100%; max-width: var(--max-width); ma
 .profile-tile {{
   --tile-tilt-x: 0deg;
   --tile-tilt-y: 0deg;
+  --glow-x: 50%;
+  --glow-y: 25%;
+  --float-x: 0px;
+  --float-y: 0px;
   position: relative;
   display: flex;
-  align-items: flex-end;
+  align-items: stretch;
   min-height: 240px;
   border-radius: 18px;
-  overflow: hidden;
+  overflow: visible;
   color: #f8f7f4;
   text-decoration: none;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -1446,14 +1503,16 @@ main {{ flex: 1; padding-top: 80px; width: 100%; max-width: var(--max-width); ma
   box-shadow: 0 24px 50px -30px rgba(0, 0, 0, 0.6);
   transform-style: preserve-3d;
   transition: transform 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease, flex 0.45s ease;
+  transform: translate3d(var(--float-x), var(--float-y), 0) rotateX(var(--tile-tilt-x)) rotateY(var(--tile-tilt-y));
 }}
 .profile-tile::before {{
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, rgba(255, 255, 255, 0.2), transparent 45%);
+  background: radial-gradient(circle at var(--glow-x) var(--glow-y), rgba(255, 255, 255, 0.35), transparent 55%);
   opacity: 0;
   transition: opacity 0.4s ease;
+  z-index: 1;
 }}
 .profile-tile::after {{
   content: "";
@@ -1465,9 +1524,10 @@ main {{ flex: 1; padding-top: 80px; width: 100%; max-width: var(--max-width); ma
   filter: blur(28px);
   opacity: 0;
   transition: opacity 0.4s ease;
+  z-index: 1;
 }}
 .profile-tile:hover {{
-  transform: translateY(-10px) rotateX(var(--tile-tilt-x)) rotateY(var(--tile-tilt-y));
+  transform: translate3d(var(--float-x), calc(var(--float-y) - 10px), 0) rotateX(var(--tile-tilt-x)) rotateY(var(--tile-tilt-y));
   box-shadow: 0 30px 60px -28px rgba(0, 0, 0, 0.7);
   border-color: rgba(255, 255, 255, 0.35);
 }}
@@ -1487,6 +1547,43 @@ main {{ flex: 1; padding-top: 80px; width: 100%; max-width: var(--max-width); ma
 .profile-row--lower .profile-tile {{
   min-height: 210px;
 }}
+.tile-stack {{
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  background: rgba(15, 15, 15, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 40px -35px rgba(0, 0, 0, 0.6);
+  transform-style: preserve-3d;
+  pointer-events: none;
+  z-index: 0;
+  transition: transform 0.4s ease, opacity 0.4s ease;
+}}
+.tile-stack--one {{
+  transform: translate3d(0, 14px, -40px) scale(0.98);
+  opacity: 0.8;
+}}
+.tile-stack--two {{
+  transform: translate3d(0, 26px, -80px) scale(0.95);
+  opacity: 0.6;
+}}
+.profile-tile:hover .tile-stack--one {{
+  transform: translate3d(0, 18px, -40px) scale(0.98);
+}}
+.profile-tile:hover .tile-stack--two {{
+  transform: translate3d(0, 30px, -80px) scale(0.95);
+}}
+.tile-surface {{
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  border-radius: 18px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.45);
+}}
 .tile-media {{
   position: absolute;
   inset: 0;
@@ -1494,10 +1591,34 @@ main {{ flex: 1; padding-top: 80px; width: 100%; max-width: var(--max-width); ma
   background-position: center;
   filter: brightness(0.6) saturate(0.95);
   transition: transform 0.6s ease, filter 0.4s ease;
+  z-index: 0;
 }}
 .tile-media--alt {{
   opacity: 0;
   transition: opacity 0.6s ease;
+  z-index: 0;
+}}
+.profile-tile.has-deck .tile-media {{
+  animation: deck-base 12s ease-in-out infinite;
+  animation-delay: var(--deck-delay, 0s);
+}}
+.profile-tile.has-deck .tile-media--alt {{
+  animation: deck-alt 12s ease-in-out infinite;
+  animation-delay: calc(var(--deck-delay, 0s) + 6s);
+}}
+.profile-row--upper .tile-media {{
+  animation-name: deck-base, media-drift;
+  animation-duration: 12s, 16s;
+  animation-timing-function: ease-in-out, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+  animation-delay: var(--deck-delay, 0s), 0s;
+}}
+.profile-row--upper .tile-media--alt {{
+  animation-name: deck-alt, media-drift;
+  animation-duration: 12s, 16s;
+  animation-timing-function: ease-in-out, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+  animation-delay: calc(var(--deck-delay, 0s) + 6s), 0s;
 }}
 .profile-tile:hover .tile-media {{
   transform: scale(1.06);
@@ -1511,6 +1632,7 @@ main {{ flex: 1; padding-top: 80px; width: 100%; max-width: var(--max-width); ma
   inset: 0;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.7) 70%);
   transform: translateZ(10px);
+  z-index: 1;
 }}
 .tile-content {{
   position: relative;
@@ -1545,6 +1667,21 @@ main {{ flex: 1; padding-top: 80px; width: 100%; max-width: var(--max-width); ma
   letter-spacing: 0.25em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.7);
+}}
+
+@keyframes deck-base {{
+  0%, 45% {{ opacity: 1; }}
+  55%, 100% {{ opacity: 0; }}
+}}
+
+@keyframes deck-alt {{
+  0%, 45% {{ opacity: 0; }}
+  55%, 100% {{ opacity: 1; }}
+}}
+
+@keyframes media-drift {{
+  0%, 100% {{ background-position: 50% 50%; }}
+  50% {{ background-position: 55% 45%; }}
 }}
 
 /* Project Overlays */
@@ -1585,8 +1722,8 @@ main {{ flex: 1; padding-top: 80px; width: 100%; max-width: var(--max-width); ma
   flex-direction: column;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   opacity: 0;
-  transform: translateY(24px) scaleY(0.96) rotateX(-8deg);
-  transform-origin: top center;
+  transform: translateY(24px) scale(0.92) rotateX(-8deg);
+  transform-origin: var(--origin-x, 50%) var(--origin-y, 20%);
   transition: transform 0.45s ease, opacity 0.35s ease;
 }}
 .project-overlay.active .overlay-backdrop {{
@@ -1671,11 +1808,25 @@ main {{ flex: 1; padding-top: 80px; width: 100%; max-width: var(--max-width); ma
   .tile-media,
   .tile-media--alt {{
     transition: none;
+    animation: none;
   }}
 }}
 
 /* Components */
-.card {{
+.construction-banner {{
+  background: var(--gold);
+  color: #000;
+  text-align: center;
+  padding: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: relative;
+  z-index: 9999;
+}}
+
+.card, .profile-card {{
   background: var(--card);
   border: 1px solid var(--card-border);
   border-radius: var(--radius);
@@ -1810,20 +1961,71 @@ function setupTileTilt() {
       const y = (event.clientY - rect.top) / rect.height;
       const tiltX = (0.5 - y) * 10;
       const tiltY = (x - 0.5) * 12;
+      const glowX = `${(x * 100).toFixed(1)}%`;
+      const glowY = `${(y * 100).toFixed(1)}%`;
       if (frame) cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         tile.style.setProperty('--tile-tilt-x', `${tiltX.toFixed(2)}deg`);
         tile.style.setProperty('--tile-tilt-y', `${tiltY.toFixed(2)}deg`);
+        tile.style.setProperty('--glow-x', glowX);
+        tile.style.setProperty('--glow-y', glowY);
       });
     };
     const handleLeave = () => {
       if (frame) cancelAnimationFrame(frame);
       tile.style.setProperty('--tile-tilt-x', '0deg');
       tile.style.setProperty('--tile-tilt-y', '0deg');
+      tile.style.setProperty('--glow-x', '50%');
+      tile.style.setProperty('--glow-y', '25%');
     };
     tile.addEventListener('mousemove', handleMove);
     tile.addEventListener('mouseleave', handleLeave);
   });
+}
+
+function setupTileFloat() {
+  if (prefersReduced) return;
+  const tiles = Array.from(document.querySelectorAll('.profile-tile'));
+  if (!tiles.length) return;
+  let raf = null;
+  const animate = (time) => {
+    tiles.forEach((tile, index) => {
+      const offset = parseFloat(tile.style.getPropertyValue('--float-offset')) || (index * 0.6);
+      if (tile.matches(':hover')) {
+        tile.style.setProperty('--float-y', '0px');
+        tile.style.setProperty('--float-x', '0px');
+        return;
+      }
+      const tier = tile.dataset.tier || 'lower';
+      const amp = tier === 'upper' ? 6 : 3;
+      const ampX = tier === 'upper' ? 4 : 2;
+      const speed = tier === 'upper' ? 0.001 : 0.0008;
+      const y = Math.sin(time * speed + offset) * amp;
+      const x = Math.cos(time * speed + offset) * ampX;
+      tile.style.setProperty('--float-y', `${y.toFixed(2)}px`);
+      tile.style.setProperty('--float-x', `${x.toFixed(2)}px`);
+    });
+    raf = requestAnimationFrame(animate);
+  };
+  const restart = () => {
+    if (!raf) {
+      raf = requestAnimationFrame(animate);
+    }
+  };
+  const stop = () => {
+    if (raf) {
+      cancelAnimationFrame(raf);
+      raf = null;
+    }
+  };
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      stop();
+    } else {
+      restart();
+    }
+  });
+  restart();
 }
 
 function setupOverlays() {
@@ -1865,6 +2067,13 @@ function setupOverlays() {
 
   const openOverlay = (overlay, trigger) => {
     if (!overlay || overlay.classList.contains('active')) return;
+    if (trigger && overlay) {
+      const rect = trigger.getBoundingClientRect();
+      const originX = ((rect.left + rect.width / 2) / window.innerWidth) * 100;
+      const originY = ((rect.top + rect.height / 2) / window.innerHeight) * 100;
+      overlay.style.setProperty('--origin-x', `${originX.toFixed(2)}%`);
+      overlay.style.setProperty('--origin-y', `${Math.min(originY, 60).toFixed(2)}%`);
+    }
     overlay.classList.add('active');
     overlay.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
@@ -2066,11 +2275,26 @@ function setupContactForm() {
   });
 }
 
+
+function setupSiteNotice() {
+  const body = document.body;
+  const noticeText = body.dataset.notice;
+  if (!noticeText) return;
+
+  const banner = document.createElement('div');
+  banner.className = 'site-notice-banner';
+  banner.style.cssText = 'background: #ffb84d; color: #000; padding: 10px; text-align: center; font-weight: bold; position: relative; z-index: 9999;';
+  banner.innerHTML = `<span>🚧 ${noticeText}</span><button onclick="this.parentElement.remove()" style="background:none; border:none; color:inherit; font:inherit; cursor:pointer; margin-left:1rem; font-size:1.2em;">&times;</button>`;
+  document.body.prepend(banner);
+}
+
 window.addEventListener('DOMContentLoaded', () => {
+  setupSiteNotice();
   revealOnScroll();
   setupScrollReveal();
   setupTileBackgrounds();
   setupTileTilt();
+  setupTileFloat();
   setupOverlays();
   smoothScroll();
   setupNewsletter();
@@ -2677,6 +2901,19 @@ def build_site() -> None:
     _write_contact_php()
     _write_data_protection()
     
+    # BibTeX Automation
+    bib_path = CONTENT_DIR / "publications.bib"
+    if bib_path.exists():
+        import subprocess
+        print(f"📚 Found bibliography: {bib_path.name}")
+        parser_script = BASE_DIR / "tools" / "parse_bibtex.py"
+        output_md = BLOCKS_DIR / "publications.md"
+        try:
+            subprocess.run([sys.executable, str(parser_script), str(bib_path), str(output_md)], check=True)
+            print("   ✅ Generated publications.md")
+        except Exception as e:
+            print(f"   ❌ BibTeX parsing failed: {e}")
+
     # SEO & Syndication
     if site.get("domain"):
         (SITE_DIR / "rss.xml").write_text(_generate_rss(site, posts), encoding="utf-8")
@@ -2820,9 +3057,9 @@ def build_site() -> None:
             <h3>Dynamic systems, grounded experiments</h3>
             <p>Placeholder for a concise, compelling institute statement.</p>
             <div class="hero-metrics">
-              <div><span>12+</span>Active research threads</div>
-              <div><span>4</span>Cross-faculty labs</div>
-              <div><span>20</span>Years of ALife history</div>
+              <div><span>Global</span>Active Research Network</div>
+              
+              
             </div>
           </div>
         </div>
@@ -2848,9 +3085,9 @@ def build_site() -> None:
             <h3>Dynamic systems, grounded experiments</h3>
             <p>Placeholder for a concise, compelling institute statement.</p>
             <div class="hero-metrics">
-              <div><span>12+</span>Active research threads</div>
-              <div><span>4</span>Cross-faculty labs</div>
-              <div><span>20</span>Years of ALife history</div>
+              <div><span>Global</span>Active Research Network</div>
+              
+              
             </div>
           </div>
         </div>
@@ -2860,10 +3097,28 @@ def build_site() -> None:
       {page_body_html}
 """
 
+        # Add search CSS
+        search_css = f'<link rel="stylesheet" href="{_escape(_rel_link(current_path, Path("assets/css/search.css")))}" />'
+        
+        # Search UI HTML
+        search_ui = f"""
+  <div class="search-container">
+    <div class="search-box">
+      <div class="search-input-wrapper">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Search..." autocomplete="off" />
+        <span class="search-shortcut">Ctrl+K</span>
+      </div>
+      <div id="search-results"></div>
+    </div>
+  </div>
+"""
+        
         doc = f"""<!doctype html>
 <html lang=\"en\">
-{_render_head(page['title'], css_href, meta_description, extra_css=extra_css)}
+{_render_head(page['title'], css_href, meta_description, extra_css=extra_css + search_css)}
 <body data-newsletter-mode="{_escape(site.get('newsletter_mode', 'local'))}" data-newsletter-url="{_escape(site.get('newsletter_provider_url', ''))}">
+  {search_ui}
   <div class="page-shell">
     {header}
     <main>
@@ -2874,6 +3129,7 @@ def build_site() -> None:
   <script src="{_escape(js_href)}"></script>
   {f'<script src="{_escape(_rel_link(current_path, Path("assets/js/landing.js")))}"></script>' if slug == "" and layout_variant == "mescia_landing" else ''}
   {f'<script src="{_escape(_rel_link(current_path, Path("assets/js/optimize.js")))}"></script>' if slug == "" else ''}
+  <script src="{_escape(_rel_link(current_path, Path("assets/js/search.js")))}"></script>
 </body>
 </html>
 """
