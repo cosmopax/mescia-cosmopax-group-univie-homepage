@@ -1,3 +1,9 @@
-# Welcome to Mescia
+# Welcome
 
-This content is used by the layout but the visual presentation is custom.
+Mescia represents the convergence of value and agency. We are building the substrate for an economy of agents.
+
+## Core Theme
+**Living Token, Agential Intelligence, Encultured AI**
+
+## Philosophy
+We believe that the future of intelligence is social and economic.

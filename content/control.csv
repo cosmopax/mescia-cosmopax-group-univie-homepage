@@ -1,5 +1,7 @@
 page_slug,section,title,kind,order,source_md
 ,intro,Welcome,hero,1,welcome.md
 research,research_intro,Research,section,1,research.md
+research,methodology,Methodology,section,2,methodology.md
 team,team_intro,Team,section,1,team.md
+team,alumni,Alumni,section,2,alumni.md
 publications,pubs_intro,Publications,section,1,publications.md

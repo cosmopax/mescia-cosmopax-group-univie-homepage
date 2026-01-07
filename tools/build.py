@@ -441,7 +441,7 @@ def _render_links(links: list[dict[str, str]]) -> str:
     return "<div class=\"tag-list\">" + "".join(items) + "</div>"
 
 
-def _render_head(title: str, css_href: str, description: str) -> str:
+def _render_head(title: str, css_href: str, description: str, extra_head: str = "") -> str:
     return f"""
 <head>
   <meta charset=\"utf-8\" />
@@ -449,6 +449,7 @@ def _render_head(title: str, css_href: str, description: str) -> str:
   <title>{_escape(title)}</title>
   <meta name=\"description\" content=\"{_escape(description)}\" />
   <link rel=\"stylesheet\" href=\"{_escape(css_href)}\" />
+{extra_head}
 </head>
 """
 
@@ -1362,11 +1363,6 @@ def _write_site_assets() -> None:
     # We will assume landing assets are placed in content/assets/css/landing.css and content/assets/js/landing.js
     # and we need to copy them to SITE_DIR/assets
     
-    pass # Placeholder for logic we handle via manual file creation in content/assets which we need to copy.
-    
-    # Wait, the script logic at 1327 copies from MEDIA_DIR to IMG_DIR.
-    # It does NOT copy generic assets from content/assets.
-    
     # I should modify this to copy content/assets to site/assets if it exists.
     src_assets = CONTENT_DIR / "assets"
     if src_assets.exists():
@@ -1571,7 +1567,7 @@ def build_site() -> None:
     digests = _read_digests()
     meta_description = site.get("meta_description", "")
     layout_variant = (site.get("layout_variant") or "standard").strip().lower()
-    if layout_variant not in {"standard", "linkhub", "profile"}:
+    if layout_variant not in {"standard", "linkhub", "profile", "mescia_landing"}:
         layout_variant = "standard"
     show_digest_home = str(site.get("show_digest_home", "")).strip().lower() in {"1", "true", "yes", "on"}
 
@@ -1590,8 +1586,10 @@ def build_site() -> None:
         header = _render_header(slug, pages, current_path)
         
         # Add landing specific assets
+        extra_head = ""
         if slug == "" and layout_variant == "mescia_landing":
-             css_href += f'" />\n  <link rel="stylesheet" href="{_escape(_rel_link(current_path, Path("assets/css/landing.css")))}'
+             landing_css = _rel_link(current_path, Path("assets/css/landing.css"))
+             extra_head = f'  <link rel="stylesheet" href="{_escape(landing_css)}" />\n'
              js_href_landing = _rel_link(current_path, Path("assets/js/landing.js"))
              # We need to inject JS at the end of body, handled later?
              # _render_section uses pages/digests context. 
@@ -1759,7 +1757,7 @@ def build_site() -> None:
 
         doc = f"""<!doctype html>
 <html lang=\"en\">
-{_render_head(page['title'], css_href, meta_description)}
+{_render_head(page['title'], css_href, meta_description, extra_head)}
 <body data-newsletter-mode=\"{_escape(site.get('newsletter_mode', 'local'))}\" data-newsletter-url=\"{_escape(site.get('newsletter_provider_url', ''))}\">
   <div class=\"page-shell\">
     {header}
