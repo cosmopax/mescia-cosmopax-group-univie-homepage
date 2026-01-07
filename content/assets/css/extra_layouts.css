@@ -8,12 +8,12 @@
   --archive-font-body: "Garamond", serif;
   
   /* Swarm Layout Variables */
-  --swarm-bg: #0f0f0f;
-  --swarm-text: #f0f0f0;
-  --swarm-accent: #00aaff;
-  --swarm-grid: rgba(128, 128, 128, 0.2);
-  --swarm-node-bg: rgba(30, 30, 30, 0.8);
-  --swarm-node-border: 1px solid #555;
+  --swarm-bg: var(--bg-dark);
+  --swarm-text: var(--text-main);
+  --swarm-accent: var(--primary-bright);
+  --swarm-grid: rgba(32, 214, 199, 0.14);
+  --swarm-node-bg: rgba(12, 20, 28, 0.88);
+  --swarm-node-border: 1px solid rgba(32, 214, 199, 0.32);
   
   /* Rhizome Layout Variables */
   --rhizome-bg: #0a140f;
@@ -141,6 +141,18 @@
   overflow: hidden;
 }
 
+.swarm-orbit {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  border: 1px dashed rgba(106, 247, 228, 0.35);
+  top: 16%;
+  left: 26%;
+  filter: drop-shadow(0 0 40px rgba(106, 247, 228, 0.12));
+  pointer-events: none;
+}
+
 .swarm-grid {
   position: absolute;
   top: 0;
@@ -160,10 +172,11 @@
   border: var(--swarm-node-border);
   border-radius: 8px;
   padding: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
   z-index: 10;
   min-width: 200px;
   transition: transform 0.3s ease;
+  backdrop-filter: blur(10px);
 }
 
 .swarm-node:hover {
@@ -208,6 +221,83 @@
 .log-entry {
   padding: 5px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.swarm-dock {
+  position: absolute;
+  right: 4%;
+  bottom: 6%;
+  width: min(420px, 92vw);
+  display: grid;
+  gap: 16px;
+  z-index: 30;
+}
+
+.swarm-panel {
+  background: rgba(9, 15, 20, 0.92);
+  border: 1px solid rgba(106, 247, 228, 0.25);
+  border-radius: 12px;
+  padding: 20px 22px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+}
+
+.swarm-panel h2 {
+  margin: 8px 0 12px;
+  color: var(--swarm-text);
+  font-size: 1.4rem;
+}
+
+.swarm-panel ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+  font-size: 0.92rem;
+  color: rgba(230, 243, 247, 0.8);
+}
+
+.swarm-kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.28em;
+  font-size: 0.68rem;
+  color: rgba(106, 247, 228, 0.7);
+  margin: 0;
+}
+
+.swarm-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: rgba(32, 214, 199, 0.15);
+  border: 1px solid rgba(106, 247, 228, 0.5);
+  color: var(--swarm-text);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.7rem;
+  text-decoration: none;
+}
+
+.swarm-cta:hover {
+  background: rgba(106, 247, 228, 0.3);
+}
+
+@media (max-width: 900px) {
+  .swarm-orbit {
+    display: none;
+  }
+  .swarm-dock {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    margin: 24px auto 0;
+  }
+  .swarm-node {
+    position: relative;
+    margin: 12px auto;
+  }
 }
 
 /* Rhizome Layout Styles */

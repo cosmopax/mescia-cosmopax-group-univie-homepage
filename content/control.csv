@@ -1,5 +1,11 @@
 page_slug,section,title,kind,order,source_md
+,,Home,page,0,
 ,intro,Welcome,hero,1,welcome.md
+,signals,Signal Arrays,section,2,signals.md
+,methods,Method Stack,section,3,methods.md
+research,,Research,page,10,
 research,research_intro,Research,section,1,research.md
+team,,Team,page,20,
 team,team_intro,Team,section,1,team.md
+publications,,Publications,page,30,
 publications,pubs_intro,Publications,section,1,publications.md

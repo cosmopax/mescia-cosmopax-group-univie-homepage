@@ -4,14 +4,18 @@
   "meta_description": "Mescia Cosmopax Group Research",
   "domain": "https://mescia-cosmopax-group.univie.ac.at",
   "layout_variant": "swarm",
+  "logo_text": "Mescia",
+  "nav_cta_text": "Enter the network",
+  "nav_cta_target": "research",
+  "contact_blurb": "We design distributed intelligence systems, exploring coordination, cryptoeconomics, and emergent governance across synthetic ecologies.",
   "theme": {
-    "primary": "#0d5c63",
-    "primary_dark": "#062e32",
-    "primary_bright": "#148e99",
-    "background": "#f0fdff",
-    "paper": "#ffffff",
-    "accent": "#4fd1c5",
-    "text_main": "#1a1a1a",
-    "text_muted": "#4a5568"
+    "primary": "#20d6c7",
+    "primary_dark": "#0b2f33",
+    "primary_bright": "#6af7e4",
+    "background": "#0b1116",
+    "paper": "#101821",
+    "accent": "#ffb84d",
+    "text_main": "#e6f3f7",
+    "text_muted": "#8fa7b5"
   }
 }

@@ -545,7 +545,7 @@ def _render_head(title: str, css_href: str, description: str, extra_css: str = "
   <meta name="description" content="{_escape(description)}" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Outfit:wght@300;400;500&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@300;400;500;600&display=swap" />
   <link rel="stylesheet" href="{_escape(css_href)}" />{extra_css}
 </head>
 """
@@ -891,19 +891,134 @@ def _build_css(site: dict[str, Any]) -> str:
     text_main = theme.get("text_main", "#1a1a1a")
     text_muted = theme.get("text_muted", "#4a4a4a")
 
+    # Theme Specifics
+    theme_overrides = ""
+    layout_variant = site.get("layout_variant", "standard")
+
+    if layout_variant == "sentient":
+        theme_overrides = f"""
+        /* Sentient / Terminal Theme */
+        body {{
+            background-color: #0d1117;
+            background-image: linear-gradient(0deg, transparent 24%, rgba(0, 255, 100, .03) 25%, rgba(0, 255, 100, .03) 26%, transparent 27%, transparent 74%, rgba(0, 255, 100, .03) 75%, rgba(0, 255, 100, .03) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(0, 255, 100, .03) 25%, rgba(0, 255, 100, .03) 26%, transparent 27%, transparent 74%, rgba(0, 255, 100, .03) 75%, rgba(0, 255, 100, .03) 76%, transparent 77%, transparent);
+            background-size: 50px 50px;
+            font-family: 'Courier New', Courier, monospace;
+        }}
+        .sentient-layout {{
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }}
+        .terminal-window {{
+            background: rgba(13, 17, 23, 0.95);
+            border: 1px solid var(--primary);
+            box-shadow: 0 0 20px rgba(0, 255, 100, 0.2);
+            border-radius: 6px;
+            overflow: hidden;
+            font-family: 'Fira Code', 'Courier New', monospace;
+        }}
+        .terminal-header {{
+            background: #161b22;
+            padding: 8px 16px;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+        .terminal-controls {{ display: flex; gap: 8px; }}
+        .control {{ width: 12px; height: 12px; border-radius: 50%; }}
+        .control.close {{ background: #ff5f56; }}
+        .control.minimize {{ background: #ffbd2e; }}
+        .control.maximize {{ background: #27c93f; }}
+        .terminal-title {{ color: #8b949e; font-size: 14px; }}
+        .terminal-content {{ padding: 20px; color: var(--text-main); }}
+        .prompt-line {{ margin-bottom: 1rem; }}
+        .prompt-user {{ color: #7ee787; font-weight: bold; }}
+        .prompt-char {{ color: #79c0ff; margin-right: 8px; }}
+        .command-input {{ color: var(--text-main); background: transparent; border: none; font-family: inherit; font-size: inherit; width: 80%; outline: none; }}
+        .cursor {{ display: inline-block; width: 10px; height: 1.2em; background: var(--primary); animation: blink 1s step-end infinite; vertical-align: middle; }}
+        @keyframes blink {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0; }} }}
+        .system-status {{ border: 1px solid var(--primary-dark); padding: 1rem; margin-bottom: 2rem; color: var(--primary); background: rgba(0, 255, 100, 0.05); }}
+        .status-row {{ display: flex; justify-content: space-between; margin-bottom: 0.5rem; }}
+        .status-value {{ font-weight: bold; }}
+        .grid-dashboard {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }}
+        .module-card {{ border: 1px solid #30363d; padding: 1.5rem; background: #0d1117; transition: all 0.2s; }}
+        .module-card:hover {{ border-color: var(--primary); box-shadow: 0 0 15px rgba(0, 255, 100, 0.1); }}
+        .module-header {{ border-bottom: 1px solid #30363d; padding-bottom: 0.5rem; margin-bottom: 1rem; font-weight: bold; color: var(--primary); }}
+        """
+
+    elif layout_variant == "swarm":
+        theme_overrides = f"""
+        /* Mescia / Swarm Theme */
+        body {{
+            background-color: {cream};
+            background-image:
+                radial-gradient(circle at top left, rgba(32, 214, 199, 0.15), transparent 55%),
+                radial-gradient(circle at 80% 20%, rgba(255, 184, 77, 0.12), transparent 60%),
+                radial-gradient(circle at 20% 80%, rgba(106, 247, 228, 0.12), transparent 55%);
+            color: {text_main};
+        }}
+        .site-header {{
+            background: rgba(8, 12, 18, 0.75);
+            border-bottom: 1px solid rgba(32, 214, 199, 0.2);
+        }}
+        .logo {{ color: {text_main}; }}
+        .nav a {{ color: {text_muted}; }}
+        .nav a:hover, .nav a.active {{ color: {primary_bright}; }}
+        .cta {{
+            background: rgba(32, 214, 199, 0.2);
+            border: 1px solid rgba(106, 247, 228, 0.5);
+            color: {text_main};
+        }}
+        .cta:hover {{ background: rgba(106, 247, 228, 0.4); }}
+        :root {{
+            --card: rgba(12, 20, 28, 0.85);
+            --glass: rgba(12, 20, 28, 0.7);
+        }}
+        """
+
+    elif layout_variant == "standard" and "holobiontic" in site.get("site_name", "").lower():
+        theme_overrides = f"""
+        /* Holobiontic / Bio Theme */
+        body {{
+            background-color: {cream};
+            background-image: radial-gradient({primary}1a 1px, transparent 1px);
+            background-size: 30px 30px;
+        }}
+        .site-header {{
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(45, 122, 70, 0.2);
+        }}
+        h1, h2, h3 {{ color: {primary_dark}; font-family: "Playfair Display", serif; }}
+        .card {{
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(45, 122, 70, 0.2);
+            box-shadow: 0 4px 20px rgba(45, 122, 70, 0.05);
+            border-radius: 12px;
+        }}
+        .button {{
+            background: linear-gradient(135deg, {primary_bright}, {primary_dark});
+            border-radius: 20px;
+            font-family: var(--font-body);
+            letter-spacing: 0.05em;
+        }}
+        .image-frame img {{ border-radius: 12px; }}
+        """
+
     return f"""
 :root {{
   color-scheme: light;
   
   /* Dynamic Theme Tokens */
-  --bordeaux: {primary};
-  --bordeaux-dark: {primary_dark};
-  --bordeaux-bright: {primary_bright};
+  --primary: {primary};
+  --primary-dark: {primary_dark};
+  --primary-bright: {primary_bright};
   --cream: {cream};
   --paper: {paper};
   --gold: {gold};
   
-  --bg-dark: var(--bordeaux-dark);
+  --bg-dark: var(--primary-dark);
   --bg-light: var(--paper);
   --text-main: {text_main};
   --text-muted: {text_muted};
@@ -914,10 +1029,10 @@ def _build_css(site: dict[str, Any]) -> str:
   --glass: rgba(255, 255, 255, 0.6);
   --shadow: {primary_dark}1a;
   
-  --font-heading: "Cormorant Garamond", serif;
-  --font-body: "Outfit", sans-serif;
+  --font-heading: "Space Grotesk", sans-serif;
+  --font-body: "Manrope", sans-serif;
   --radius: 8px;
-  --max-width: 1000px;
+  --max-width: 1200px;
 }}
 
 /* Base */
@@ -927,66 +1042,39 @@ body {{
   background: var(--paper);
   color: var(--text-main);
   line-height: 1.6;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+  transition: background-color 0.3s, color 0.3s;
 }}
 
 /* Typography */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@300;400;500;600&display=swap');
+
 h1, h2, h3 {{
   font-family: var(--font-heading);
-  color: var(--bordeaux);
+  color: var(--primary);
   margin-top: 0;
 }}
 
-h1 {{ font-size: 3.5rem; letter-spacing: -0.01em; margin-bottom: 0.5rem; }}
+h1 {{ font-size: 3.5rem; letter-spacing: -0.01em; margin-bottom: 0.5rem; line-height: 1.1; }}
 h2 {{ font-size: 2.2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--gold); display: inline-block; padding-bottom: 5px; }}
-a {{ color: var(--bordeaux); text-decoration: none; font-weight: 500; transition: color 0.2s; }}
-a:hover {{ color: var(--bordeaux-bright); }}
-a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {{
-  outline: 2px solid var(--bordeaux);
-  outline-offset: 3px;
-}}
+a {{ color: var(--primary); text-decoration: none; font-weight: 500; transition: color 0.2s; }}
+a:hover {{ color: var(--primary-bright); }}
 
 /* Layout */
 .page-shell {{ min-height: 100vh; display: flex; flex-direction: column; }}
-main {{ flex: 1; padding-top: 100px; }}
-
-/* Accessibility */
-.skip-link {{
-  position: absolute;
-  left: 1rem;
-  top: 1rem;
-  padding: 0.5rem 1rem;
-  background: var(--paper);
-  color: var(--bordeaux);
-  border: 1px solid var(--bordeaux);
-  border-radius: 4px;
-  transform: translateY(-200%);
-  transition: transform 0.2s ease;
-  z-index: 200;
-}}
-.skip-link:focus {{ transform: translateY(0); }}
-.sr-only {{
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}}
+main {{ flex: 1; padding-top: 80px; width: 100%; max-width: var(--max-width); margin: 0 auto; padding-left: 5vw; padding-right: 5vw; box-sizing: border-box; }}
 
 /* Header */
 .site-header {{
   position: fixed;
   top: 0;
+  left: 0;
   width: 100%;
-  padding: 20px 5vw;
+  padding: 15px 5vw;
+  box-sizing: border-box;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  z-index: 100;
+  z-index: 1000;
   background: var(--header-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -997,39 +1085,98 @@ main {{ flex: 1; padding-top: 100px; }}
   font-family: var(--font-heading);
   font-size: 24px;
   font-weight: 700;
-  color: var(--bordeaux);
+  color: var(--primary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }}
 
 .nav {{ display: flex; gap: 30px; }}
-.nav a {{ color: var(--text-muted); text-transform: uppercase; font-size: 14px; letter-spacing: 0.1em; }}
-.nav a:hover, .nav a.active {{ color: var(--bordeaux); }}
+.nav a {{ color: var(--text-muted); text-transform: uppercase; font-size: 13px; letter-spacing: 0.1em; font-weight: 600; }}
+.nav a:hover, .nav a.active {{ color: var(--primary); }}
+.cta {{
+  padding: 10px 22px;
+  border-radius: 999px;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 12px;
+  font-weight: 600;
+}}
+.cta:hover {{ background: var(--primary); color: #fff; }}
 
 /* Components */
 .card, .profile-card {{
   background: var(--card);
   border: 1px solid var(--card-border);
   border-radius: var(--radius);
-  padding: 40px;
-  box-shadow: 0 10px 30px -10px var(--shadow);
-  transition: transform 0.3s;
+  padding: 30px;
+  box-shadow: 0 4px 20px var(--shadow);
+  transition: transform 0.3s, box-shadow 0.3s;
 }}
 
-.card:hover {{ transform: translateY(-5px); }}
+.card:hover {{ transform: translateY(-3px); box-shadow: 0 8px 30px var(--shadow); }}
 
 .button {{
   padding: 12px 28px;
-  background: var(--bordeaux);
+  background: var(--primary);
   color: #fff;
   border-radius: 4px;
   text-transform: uppercase;
-  font-size: 14px;
+  font-size: 13px;
   letter-spacing: 0.1em;
+  font-weight: 600;
   border: none;
   cursor: pointer;
+  display: inline-block;
+  text-align: center;
 }}
-.button:hover {{ background: var(--bordeaux-bright); box-shadow: 0 5px 15px rgba(101, 20, 28, 0.2); }}
+.button:hover {{ background: var(--primary-bright); color: #fff; }}
+.button.ghost {{ background: transparent; border: 1px solid var(--primary); color: var(--primary); }}
+.button.ghost:hover {{ background: var(--primary); color: #fff; }}
+
+/* Grid Layouts */
+.content-grid {{ display: grid; grid-template-columns: 1fr; gap: 40px; }}
+@media (min-width: 768px) {{
+  .content-grid {{ grid-template-columns: 1fr 1fr; align-items: center; }}
+  .content-grid > div:first-child {{ order: 1; }}
+  .content-grid > div:last-child {{ order: 2; }}
+}}
+
+.card-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 30px; margin: 40px 0; }}
+
+/* Section Styling */
+.content-section {{
+  margin: 60px 0;
+  padding: 40px;
+  background: var(--glass);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 30px -20px var(--shadow);
+}}
+.content-section .content-grid {{ align-items: flex-start; }}
+.content-section h2 {{ margin-top: 0; }}
+.content-section ul {{
+  list-style: none;
+  padding: 0;
+  margin: 20px 0 0;
+  display: grid;
+  gap: 16px;
+}}
+.content-section ul li {{
+  padding: 16px 18px;
+  border-radius: calc(var(--radius) - 2px);
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  box-shadow: 0 6px 16px -12px var(--shadow);
+}}
+.content-section blockquote {{
+  margin: 24px 0;
+  padding: 18px 22px;
+  border-left: 4px solid var(--gold);
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: var(--radius);
+}}
 
 /* Forms */
 input, textarea {{
@@ -1037,20 +1184,30 @@ input, textarea {{
   padding: 15px;
   border: 1px solid var(--card-border);
   border-radius: 4px;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.8);
   font-family: var(--font-body);
   margin-bottom: 20px;
+  box-sizing: border-box;
 }}
-input:focus, textarea:focus {{ border-color: var(--bordeaux); outline: none; }}
+input:focus, textarea:focus {{ border-color: var(--primary); outline: none; box-shadow: 0 0 0 2px var(--card-border); }}
 
 /* Footer */
 .site-footer {{
-  background: var(--bordeaux-dark);
+  background: var(--primary-dark);
   color: var(--cream);
   padding: 60px 5vw;
-  margin-top: auto;
+  margin-top: 60px;
 }}
-.site-footer a {{ color: var(--gold); }}
+.site-footer a {{ color: var(--gold); opacity: 0.8; }}
+.site-footer a:hover {{ opacity: 1; }}
+.footer-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 40px; }}
+.footer-title {{ font-family: var(--font-heading); font-size: 1.2rem; margin-bottom: 1rem; color: #fff; }}
+
+/* Images */
+img {{ max-width: 100%; height: auto; display: block; }}
+.image-frame {{ margin: 0; overflow: hidden; border-radius: var(--radius); box-shadow: 0 10px 40px -10px var(--shadow); }}
+
+{theme_overrides}
 """
 
 
@@ -1229,6 +1386,254 @@ def _render_archive_layout(site: dict[str, str], pages: dict[str, dict[str, obje
         </aside>
       </section>
 """
+
+
+def _render_swarm_layout(site: dict[str, str], pages: dict[str, dict[str, object]], current_path: Path) -> str:
+    hero_title = _escape(site.get("site_name", "Swarm"))
+    tagline = _escape(site.get("site_tagline", ""))
+    blurb = _escape(site.get("contact_blurb", ""))
+    
+    # Generate content nodes for the swarm layout
+    nodes_html = []
+    
+    # Main content node
+    nodes_html.append(f"""
+    <div class="swarm-node main-node" style="top: 16%; left: 28%; width: 44%;">
+        <h1>{hero_title}</h1>
+        <p class="subtitle">{tagline}</p>
+        <p>{blurb}</p>
+    </div>
+    """)
+    
+    # Add nodes for each page
+    node_positions = [
+        {"top": "8%", "left": "8%"},
+        {"top": "70%", "left": "12%"},
+        {"top": "44%", "left": "72%"},
+        {"top": "78%", "left": "62%"},
+        {"top": "12%", "left": "64%"},
+        {"top": "30%", "left": "10%"}
+    ]
+    
+    for i, (slug, page) in enumerate(pages.items()):
+        if slug == "": continue  # Skip home page as it's the main node
+        if i >= len(node_positions): break  # Don't exceed available positions
+        
+        position = node_positions[i]
+        title = _escape(page.get("title", slug.title()))
+        href = _escape(_rel_page_link(current_path, slug))
+        
+        nodes_html.append(f"""
+        <a href="{href}" class="swarm-node page-node" style="top: {position['top']}; left: {position['left']};">
+            <h3>{title}</h3>
+        </a>
+        """)
+    
+    # Add "Live Pulse" section
+    nodes_html.append(f"""
+    <div class="swarm-node pulse-node" style="top: 58%; left: 38%;">
+        <h3>Signal Pulse</h3>
+        <div class="pulse-content">
+            <p>Live telemetry from coordination experiments</p>
+            <div class="activity-log">
+                <div class="log-entry">Cluster topology stabilized</div>
+                <div class="log-entry">Consensus drift detected</div>
+                <div class="log-entry">Memory lattice refreshed</div>
+            </div>
+        </div>
+    </div>
+    """)
+    
+    return f"""
+    <section class="swarm-layout">
+        <canvas id="swarm-canvas"></canvas>
+        <div class="swarm-canvas-overlay">
+            <div class="swarm-grid"></div>
+            <div class="swarm-orbit"></div>
+            {''.join(nodes_html)}
+            <aside class="swarm-dock">
+                <div class="swarm-panel">
+                    <p class="swarm-kicker">Research Clusters</p>
+                    <h2>Coordination Stack</h2>
+                    <ul>
+                        <li>Adaptive incentives and agent alignment</li>
+                        <li>Collective memory and semantic drift</li>
+                        <li>Protocol ecology and resilience testing</li>
+                    </ul>
+                </div>
+                <div class="swarm-panel">
+                    <p class="swarm-kicker">Method Stack</p>
+                    <h2>Simulation Studio</h2>
+                    <ul>
+                        <li>Agent-based worlds with live telemetry</li>
+                        <li>Network topology and phase transition mapping</li>
+                        <li>Field probes embedded in civic systems</li>
+                    </ul>
+                </div>
+                <a class="swarm-cta" href="{_escape(_rel_page_link(current_path, 'research'))}">Enter research</a>
+            </aside>
+        </div>
+    </section>
+    """
+
+
+def _render_rhizome_layout(site: dict[str, str], pages: dict[str, dict[str, object]], current_path: Path) -> str:
+    hero_title = _escape(site.get("site_name", "Rhizome"))
+    tagline = _escape(site.get("site_tagline", ""))
+    
+    # Generate content blocks for the rhizome layout
+    blocks_html = []
+    
+    # Main content block
+    blocks_html.append(f"""
+    <div class="rhizome-block main-block">
+        <h1>{hero_title}</h1>
+        <p class="subtitle">{tagline}</p>
+        <p>{_escape(site.get("contact_blurb", ""))}</p>
+    </div>
+    """)
+    
+    # Add blocks for each page
+    for slug, page in list(pages.items())[:4]:  # Limit to first 4 pages
+        if slug == "": continue  # Skip home page as it's the main block
+        title = _escape(page.get("title", slug.title()))
+        href = _escape(_rel_page_link(current_path, slug))
+        
+        blocks_html.append(f"""
+        <a href="{href}" class="rhizome-block page-block">
+            <h3>{title}</h3>
+        </a>
+        """)
+    
+    # Add "Symbiosis Mode" toggle
+    blocks_html.append(f"""
+    <div class="rhizome-block toggle-block">
+        <h3>Symbiosis Mode</h3>
+        <div class="theme-toggle">
+            <button id="bio-theme-btn" class="theme-btn">Bio</button>
+            <button id="techno-theme-btn" class="theme-btn">Techno</button>
+        </div>
+    </div>
+    """)
+    
+    # Generate SVG connections
+    svg_connections = """
+    <svg class="rhizome-connections" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 200 100 Q 300 50 400 100" stroke="var(--rhizome-accent)" fill="none" stroke-width="2" />
+        <path d="M 200 100 Q 150 200 100 300" stroke="var(--rhizome-accent)" fill="none" stroke-width="2" />
+        <path d="M 200 100 Q 350 250 500 300" stroke="var(--rhizome-accent)" fill="none" stroke-width="2" />
+        <path d="M 100 300 Q 300 350 500 300" stroke="var(--rhizome-accent)" fill="none" stroke-width="2" />
+    </svg>
+    """
+    
+    return f"""
+    <section class="rhizome-layout">
+        <div class="rhizome-container">
+            {svg_connections}
+            <div class="rhizome-grid">
+                {''.join(blocks_html)}
+            </div>
+        </div>
+    </section>
+    """
+
+
+def _render_sentient_layout(site: dict[str, str], pages: dict[str, dict[str, object]], current_path: Path) -> str:
+    """Render a cybernetic terminal aesthetic layout with terminal-like interface elements."""
+    hero_title = _escape(site.get("site_name", "Sentient System"))
+    tagline = _escape(site.get("site_tagline", ""))
+    
+    # Generate navigation for the terminal interface
+    nav_items = []
+    for slug in ["", "about", "research", "projects", "contact"]:  # Using standard navigation slugs
+        if slug not in pages:
+            continue
+        title = _escape(pages[slug]["title"])
+        href = _escape(_rel_page_link(current_path, slug))
+        active = "active" if slug == "" else ""  # Assuming home page is active
+        nav_items.append(f'<a class="terminal-nav-item {active}" href="{href}">[{title}]</a>')
+    
+    # Generate terminal-style content
+    terminal_content = f"""
+    <div class="terminal-header">
+        <div class="terminal-controls">
+            <span class="control-btn close"></span>
+            <span class="control-btn minimize"></span>
+            <span class="control-btn maximize"></span>
+        </div>
+        <div class="terminal-title">system@sentient:~$ {hero_title}</div>
+    </div>
+    <div class="terminal-body">
+        <div class="terminal-vis-layer">
+            <img src="{_escape(_rel_link(current_path, Path("assets/img/sentient_hero_cyberpunk_crt_1767665692747.png")))}" alt="System Visualization" />
+        </div>
+        <div class="terminal-prompt">
+            <span class="prompt-user">user@sentient</span>
+            <span class="prompt-symbol">$</span>
+            <span class="prompt-command">init_session</span>
+        </div>
+        <div class="terminal-output">
+            <div class="terminal-output-line">Initializing sentient system...</div>
+            <div class="terminal-output-line">System status: <span class="status-active">ACTIVE</span></div>
+            <div class="terminal-output-line">Neural pathways: <span class="status-active">ONLINE</span></div>
+            <div class="terminal-output-line">Cognitive modules: <span class="status-active">READY</span></div>
+        </div>
+        
+        <div class="terminal-prompt">
+            <span class="prompt-user">user@sentient</span>
+            <span class="prompt-symbol">$</span>
+            <span class="prompt-command">display_info</span>
+        </div>
+        <div class="terminal-output">
+            <div class="terminal-header-block">
+                <h1 class="terminal-title-main">{hero_title}</h1>
+                <p class="terminal-subtitle">{tagline}</p>
+                <p class="terminal-blurb">{_escape(site.get("contact_blurb", ""))}</p>
+            </div>
+        </div>
+        
+        <div class="terminal-prompt">
+            <span class="prompt-user">user@sentient</span>
+            <span class="prompt-symbol">$</span>
+            <span class="prompt-command">show_modules</span>
+        </div>
+        <div class="terminal-output">
+            <div class="terminal-modules">
+                <div class="terminal-module">
+                    <div class="module-header">[Navigation]</div>
+                    <div class="module-content">
+                        {''.join(nav_items)}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="terminal-prompt">
+            <span class="prompt-user">user@sentient</span>
+            <span class="prompt-symbol">$</span>
+            <span class="prompt-command">show_overview</span>
+        </div>
+        <div class="terminal-output">
+            <div class="terminal-overview">
+                {_render_home_overview(pages, current_path)}
+            </div>
+        </div>
+        
+        <div class="terminal-prompt terminal-prompt-ready">
+            <span class="prompt-user">user@sentient</span>
+            <span class="prompt-symbol">$</span>
+            <span class="prompt-command" id="terminal-cursor">|</span>
+        </div>
+    </div>
+    """
+    
+    return f"""
+    <section class="sentient-layout">
+        <div class="terminal-container">
+            {terminal_content}
+        </div>
+    </section>
+    """
 
 
 def _render_mescia_landing(site: dict[str, str], pages: dict[str, dict[str, object]], current_path: Path) -> str:
@@ -1563,7 +1968,7 @@ def build_site() -> None:
     digests = _read_digests()
     meta_description = site.get("meta_description", "")
     layout_variant = (site.get("layout_variant") or "standard").strip().lower()
-    if layout_variant not in {"standard", "linkhub", "profile", "mescia_landing", "archive"}:
+    if layout_variant not in {"standard", "linkhub", "profile", "mescia_landing", "archive", "swarm", "rhizome", "sentient"}:
         layout_variant = "standard"
     show_digest_home = str(site.get("show_digest_home", "")).strip().lower() in {"1", "true", "yes", "on"}
 
@@ -1590,6 +1995,13 @@ def build_site() -> None:
 
         header = _render_header(slug, pages, current_path, site)
         footer = _render_footer(site, pages, current_path, links)
+        
+        body_scripts = f'<script src="{_escape(js_href)}"></script>'
+        if slug == "" and layout_variant == "swarm":
+            body_scripts += f'\n<script src="{_escape(_rel_link(current_path, Path("assets/js/swarm.js")))}"></script>'
+        if slug == "" and layout_variant == "mescia_landing":
+            body_scripts += f'\n<script src="{_escape(_rel_link(current_path, Path("assets/js/landing.js")))}"></script>'
+        
         sections = list(page["sections"])
         if slug == "" and not show_digest_home:
             sections = [section for section in sections if section.get("kind") != "digest_list"]
@@ -1639,6 +2051,12 @@ def build_site() -> None:
         if slug == "":
             if layout_variant == "archive":
                 homepage_body = _render_archive_layout(site, pages, current_path, hero_heading, hero_body, sections_html, overview_html, page_body_html)
+            elif layout_variant == "swarm":
+                homepage_body = _render_swarm_layout(site, pages, current_path)
+            elif layout_variant == "rhizome":
+                homepage_body = _render_rhizome_layout(site, pages, current_path)
+            elif layout_variant == "sentient":
+                homepage_body = _render_sentient_layout(site, pages, current_path)
             elif layout_variant == "linkhub":
                 homepage_body = f"""
       <section class="linkhub">
@@ -1760,8 +2178,7 @@ def build_site() -> None:
     </main>
     {footer}
   </div>
-  <script src="{_escape(js_href)}"></script>
-  {f'<script src="{_escape(_rel_link(current_path, Path("assets/js/landing.js")))}"></script>' if slug == "" and layout_variant == "mescia_landing" else ''}
+  {body_scripts}
 </body>
 </html>
 """

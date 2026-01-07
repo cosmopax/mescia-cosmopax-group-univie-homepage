@@ -1,12 +1,17 @@
-# Selected Publications
+# Publications
 
-## Agential Economics & Crypto-Ecology
+Selected papers and reports explore coordination, emergent intelligence, and protocol design in synthetic ecologies.
 
-* **Mescia, C.** (2025). *The Metabolic Token: A New Substrate for Agential Value*.
-* **Mescia, C. & Schimpl, P.** (2024). *Decentralized Synthetic Cognition: A Manifesto*.
-* **Mescia, C.** (2024). *Swarm Dynamics in Proof-of-Stake Networks*.
+## Coordination and Incentives
 
-## Synthetic Intelligence
+- **Mescia Lab.** (2025). *Incentive Landscapes for Autonomous Agent Commons*.
+- **Schimpl, P., Mescia, C.** (2024). *Protocol Rituals for Networked Cooperation*.
 
-* **Mescia, C.** (2023). *Evolving Sentience in Hybrid Silicon-Carbon Substrates*.
-* **Mescia, C.** (2022). *The Logic of Distributed Agency*.
+## Ecological Computation
+
+- **Mescia Lab.** (2024). *Synthetic Ecologies as Computational Infrastructure*.
+- **Haller, N.** (2023). *Feedback Loops in Multi-Agent Environments*.
+
+## Governance and Ethics
+
+- **Mescia Lab.** (2023). *Ethics of Delegated Agency in Decentralized Systems*.
