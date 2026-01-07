@@ -180,3 +180,181 @@ document.addEventListener('DOMContentLoaded', () => {
 
     animationId = requestAnimationFrame(animate);
 });
+
+/* --- V2 UI Interactions --- */
+document.addEventListener('DOMContentLoaded', () => {
+    const focusableSelector = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+    const focusCleanupMap = new WeakMap();
+    const focusReturnMap = new WeakMap();
+    const burgerToggle = document.querySelector('.burger-toggle');
+    if (burgerToggle) {
+        burgerToggle.setAttribute('aria-expanded', 'false');
+    }
+
+    const getFocusable = (container) => Array.from(container.querySelectorAll(focusableSelector));
+
+    const trapFocus = (container) => {
+        const focusables = getFocusable(container);
+        if (!focusables.length) {
+            return () => {};
+        }
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const handler = (event) => {
+            if (event.key !== 'Tab') return;
+            if (focusables.length === 1) {
+                event.preventDefault();
+                first.focus();
+                return;
+            }
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+        container.addEventListener('keydown', handler);
+        return () => container.removeEventListener('keydown', handler);
+    };
+
+    const openOverlay = (overlay, trigger) => {
+        if (!overlay || overlay.classList.contains('active')) return;
+        overlay.classList.add('active');
+        overlay.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        focusReturnMap.set(overlay, trigger || document.activeElement);
+        const cleanup = trapFocus(overlay);
+        focusCleanupMap.set(overlay, cleanup);
+        const focusables = getFocusable(overlay);
+        if (focusables.length) {
+            focusables[0].focus({ preventScroll: true });
+        } else {
+            overlay.setAttribute('tabindex', '-1');
+            overlay.focus({ preventScroll: true });
+        }
+    };
+
+    const closeOverlay = (overlay) => {
+        if (!overlay || !overlay.classList.contains('active')) return;
+        overlay.classList.remove('active');
+        overlay.setAttribute('aria-hidden', 'true');
+        const cleanup = focusCleanupMap.get(overlay);
+        if (cleanup) cleanup();
+        focusCleanupMap.delete(overlay);
+        const returnTarget = focusReturnMap.get(overlay);
+        focusReturnMap.delete(overlay);
+        if (!document.querySelector('.project-overlay.active, .burger-menu-overlay.active')) {
+            document.body.style.overflow = '';
+        }
+        if (returnTarget && typeof returnTarget.focus === 'function') {
+            returnTarget.focus({ preventScroll: true });
+        }
+    };
+
+    // Burger Menu Logic
+    window.toggleBurgerMenu = function () {
+        const overlay = document.getElementById('burger-menu');
+        if (overlay) {
+            if (overlay.classList.contains('active')) {
+                closeOverlay(overlay);
+                if (burgerToggle) burgerToggle.setAttribute('aria-expanded', 'false');
+            } else {
+                openOverlay(overlay, burgerToggle);
+                if (burgerToggle) burgerToggle.setAttribute('aria-expanded', 'true');
+            }
+        }
+    };
+
+    // Overlay Logic
+    const overlayTriggers = document.querySelectorAll('[data-type="overlay"]');
+    overlayTriggers.forEach(trigger => {
+        trigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            const overlayId = trigger.getAttribute('data-overlay-id');
+            const overlay = document.getElementById(`overlay-${overlayId}`);
+            if (overlay) {
+                openOverlay(overlay, trigger);
+            }
+        });
+    });
+
+    // Close Overlay Logic
+    document.querySelectorAll('[data-close-overlay]').forEach(closer => {
+        closer.addEventListener('click', () => {
+            const overlay = closer.closest('.project-overlay');
+            if (overlay) {
+                closeOverlay(overlay);
+            }
+        });
+    });
+
+    // Pointer-down outside closes overlay
+    document.querySelectorAll('.project-overlay, .burger-menu-overlay').forEach(overlay => {
+        overlay.addEventListener('pointerdown', (event) => {
+            if (overlay.classList.contains('project-overlay')) {
+                if (event.target.classList.contains('overlay-backdrop') || event.target === overlay) {
+                    closeOverlay(overlay);
+                }
+                return;
+            }
+            if (event.target === overlay) {
+                closeOverlay(overlay);
+                if (burgerToggle) burgerToggle.setAttribute('aria-expanded', 'false');
+            }
+        });
+    });
+
+    // Close burger menu after navigation
+    const burgerMenu = document.getElementById('burger-menu');
+    if (burgerMenu) {
+        burgerMenu.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                closeOverlay(burgerMenu);
+                if (burgerToggle) burgerToggle.setAttribute('aria-expanded', 'false');
+            });
+        });
+    }
+
+    // ESC to close all
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.project-overlay.active, .burger-menu-overlay.active').forEach(el => {
+                closeOverlay(el);
+                if (el.id === 'burger-menu' && burgerToggle) {
+                    burgerToggle.setAttribute('aria-expanded', 'false');
+                }
+            });
+        }
+    });
+
+
+    // Scroll Reveal Animation (Intersection Observer)
+    const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('revealed');
+                // Optional: Stop observing once revealed
+                revealObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.scroll-reveal').forEach(el => revealObserver.observe(el));
+
+    // Lazy Load Project/Team Backgrounds
+    const bgImages = document.querySelectorAll('.card-bg, .team-img');
+    bgImages.forEach(bg => {
+        const style = window.getComputedStyle(bg);
+        const urlMatch = style.backgroundImage.match(/url\(['"]?(.*?)['"]?\)/);
+        if (urlMatch && urlMatch[1]) {
+            const img = new Image();
+            img.src = urlMatch[1];
+            img.onload = () => bg.classList.add('loaded');
+        } else {
+            // If no image or already cached, just show it
+            bg.classList.add('loaded');
+        }
+    });
+});

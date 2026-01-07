@@ -1,11 +1,19 @@
 page_slug,section,title,kind,order,source_md
 ,,Home,page,0,
-,intro,Welcome,hero,1,welcome.md
+,hero,Welcome,hero,1,welcome.md
 ,signals,Signal Arrays,section,2,signals.md
 ,methods,Method Stack,section,3,methods.md
+,social,Social Learning,section,4,social_learning.md
 research,,Research,page,10,
-research,research_intro,Research,section,1,research.md
+research,research_hero,Research,hero,0,
+research,research_intro,Research,research_grid,1,research.json
 team,,Team,page,20,
-team,team_intro,Team,section,1,team.md
-publications,,Publications,page,30,
-publications,pubs_intro,Publications,section,1,publications.md
+team,team_hero,Team,hero,0,
+team,team_intro,Team,team_grid,1,team.json
+projects,,Projects,page,30,
+projects,projects_hero,Projects,hero,0,
+projects,projects_intro,Projects,project_grid_v2,1,projects.json
+blog,,News,page,40,
+blog,posts,News,blog_list,1,
+contact,,Contact,page,50,
+contact,form,Get in Touch,contact_form,1,

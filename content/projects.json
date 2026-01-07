@@ -1,0 +1,26 @@
+[
+    {
+        "title": "Autonomous Governance",
+        "image": "assets/img/mescia_gov.png",
+        "link": "projects/governance",
+        "description": "Cryptoeconomic primitives for self-managing organizations.",
+        "overlay_type": "project",
+        "overlay_content": "overlays/governance.md"
+    },
+    {
+        "title": "Signal Cartography",
+        "image": "assets/img/mescia_signal.png",
+        "link": "projects/signal",
+        "description": "Mapping information flows in hybrid social networks.",
+        "overlay_type": "project",
+        "overlay_content": "overlays/signal.md"
+    },
+    {
+        "title": "Creative AI Interfaces",
+        "image": "assets/img/mescia_ai.png",
+        "link": "projects/ai-interfaces",
+        "description": "Human-in-the-loop systems for generative media.",
+        "overlay_type": "project",
+        "overlay_content": "overlays/ai.md"
+    }
+]

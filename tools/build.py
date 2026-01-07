@@ -55,7 +55,7 @@ PLACEHOLDER_IMAGES = {
     "placeholder-grid.svg": "Project grid placeholder",
 }
 
-NAV_SLUGS = ["", "about", "research", "projects", "digest", "blog", "contact"]
+NAV_SLUGS = ["", "about", "research", "team", "publications", "projects", "digest", "blog", "contact"]
 
 
 def _escape(text: str) -> str:
@@ -284,6 +284,8 @@ def _resolve_image_src(raw_image: str, current_path: Path) -> str:
     image = (raw_image or "").strip()
     if not image:
         image = "placeholder-hero.svg"
+    if image.startswith(("http://", "https://")):
+        return image
     if image.startswith("assets/"):
         return _rel_link(current_path, Path(image))
     return _rel_link(current_path, Path("assets/img") / image)
@@ -328,17 +330,7 @@ def _read_control() -> dict[str, dict[str, object]]:
             )
     for page in pages.values():
         page["sections"] = sorted(page["sections"], key=lambda item: item["order"])
-        if not page.get("order") and page["sections"]:
-            page["order"] = min(section["order"] for section in page["sections"])
     return pages
-
-
-def _nav_slugs(pages: dict[str, dict[str, object]]) -> list[str]:
-    items = sorted(pages.items(), key=lambda item: (item[1].get("order", 0), item[0]))
-    slugs = [slug for slug, _ in items if slug != ""]
-    if "" in pages:
-        slugs.insert(0, "")
-    return slugs
 
 
 def _read_links() -> list[dict[str, str]]:
@@ -543,9 +535,6 @@ def _render_head(title: str, css_href: str, description: str, extra_css: str = "
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{_escape(title)}</title>
   <meta name="description" content="{_escape(description)}" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@300;400;500;600&display=swap" />
   <link rel="stylesheet" href="{_escape(css_href)}" />{extra_css}
 </head>
 """
@@ -553,7 +542,7 @@ def _render_head(title: str, css_href: str, description: str, extra_css: str = "
 
 def _render_header(current_slug: str, pages: dict[str, dict[str, object]], current_path: Path, site: dict[str, object]) -> str:
     nav_links = []
-    for slug in _nav_slugs(pages):
+    for slug in NAV_SLUGS:
         if slug not in pages:
             continue
         title = pages[slug]["title"]
@@ -569,12 +558,38 @@ def _render_header(current_slug: str, pages: dict[str, dict[str, object]], curre
     # Dynamic Logo
     logo_text = str(site.get("logo_text") or site.get("site_name") or "ALI")
 
+    # Burger Menu construction
+    burger_nav_items = []
+    for slug in NAV_SLUGS:
+        if slug not in pages: continue
+        t = pages[slug]["title"]
+        h = _rel_page_link(current_path, slug)
+        burger_nav_items.append(f'<a href="{_escape(h)}">{_escape(t)}</a>')
+    
+    # Add footer-like links to burger
+    burger_nav_items.append('<hr>')
+    burger_nav_items.append(f'<a href="{_escape(cta_href)}">{_escape(cta_text)}</a>')
+
     return f"""
-<a class="skip-link" href="#main-content">Skip to content</a>
 <header class="site-header">
-  <a class="logo" href="{_escape(_rel_page_link(current_path, ""))}">{_escape(logo_text)}</a>
-  <nav class="nav" aria-label="Primary">{''.join(nav_links)}</nav>
-  <a class="cta" href="{_escape(cta_href)}">{_escape(cta_text)}</a>
+  <div class="header-left">
+      <a class="logo" href="{_escape(_rel_page_link(current_path, ""))}">{_escape(logo_text)}</a>
+  </div>
+  <nav class="nav">{''.join(nav_links)}</nav>
+  <div class="header-right">
+      <a class="cta" href="{_escape(cta_href)}">{_escape(cta_text)}</a>
+      <button class="burger-toggle" aria-label="Toggle Navigation" aria-controls="burger-menu" aria-expanded="false" onclick="toggleBurgerMenu()">
+        <span></span><span></span><span></span>
+      </button>
+  </div>
+  <!-- Burger Overlay -->
+  <div class="burger-menu-overlay" id="burger-menu" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Site navigation" aria-describedby="burger-description">
+      <button class="burger-close" type="button" aria-label="Close navigation" onclick="toggleBurgerMenu()">&times;</button>
+      <p id="burger-description" class="sr-only">Site navigation menu. Press Escape to close.</p>
+      <nav class="burger-nav">
+          {''.join(burger_nav_items)}
+      </nav>
+  </div>
 </header>
 """
 
@@ -623,6 +638,14 @@ def _render_section(
         return _render_contact_form(section, current_path)
     if kind == "digest_list":
         return _render_digest_list(section, current_path, digests)
+    if kind == "project_grid_v2":
+        return _render_project_grid_v2(section, current_path, pages)
+    if kind == "team_grid":
+        return _render_team_grid(section, current_path)
+    if kind == "pub_list":
+        return _render_pub_list(section, current_path)
+    if kind == "research_grid":
+        return _render_research_grid(section, current_path)
     heading = _escape(section.get("title", ""))
     body = _render_markdown(_read_block(section.get("source_md", "")))
     cta_text = _escape(section.get("cta_text", ""))
@@ -647,9 +670,7 @@ def _render_section(
 </section>
 """
 
-
-
-def _render_project_grid_v2(section: dict[str, str], current_path: Path) -> str:
+def _render_project_grid_v2(section: dict[str, str], current_path: Path, pages: dict[str, dict[str, object]]) -> str:
     projects_path = CONTENT_DIR / "projects.json"
     if not projects_path.exists():
         return "<p>Missing projects.json</p>"
@@ -658,70 +679,122 @@ def _render_project_grid_v2(section: dict[str, str], current_path: Path) -> str:
     if not isinstance(projects, list):
         return "<p>Invalid projects.json format</p>"
     
-    cards = []
+    upper_cards = []
+    lower_cards = []
     overlays = []
+    overlay_cache: dict[str, str] = {}
+    image_cache: dict[str, str] = {}
     
     for proj in projects:
         t = proj.get("title", "")
         desc = proj.get("description", "")
         img_raw = proj.get("image", "")
-        img = _resolve_image_src(img_raw, current_path)
-        p_type = proj.get("type", "link")
+        img_key = str(img_raw or "")
+        img = image_cache.get(img_key)
+        if img is None:
+            img = _resolve_image_src(img_raw, current_path)
+            image_cache[img_key] = img
+        p_type = str(proj.get("type") or "link").lower()
         p_id = proj.get("id", "")
-        keywords = proj.get("keywords", [])
-        if isinstance(keywords, list):
-            keywords = ", ".join(keywords)
+        tier = str(proj.get("tier") or ("upper" if p_type == "overlay" else "lower")).lower()
+        deck = proj.get("deck") or []
+        if not isinstance(deck, list):
+            deck = []
+        deck_images = [str(item) for item in deck if item]
+        primary_image = img
+        alt_image = ""
+        if deck_images:
+            primary_image = _resolve_image_src(deck_images[0], current_path)
+            if len(deck_images) > 1:
+                alt_image = _resolve_image_src(deck_images[1], current_path)
+        keywords_raw = proj.get("keywords", "")
+        keywords_list: list[str] = []
+        if isinstance(keywords_raw, list):
+            keywords_list = [str(item) for item in keywords_raw if item]
+        elif keywords_raw:
+            keywords_list = [str(keywords_raw)]
             
         action_attr = ""
         link_target = "#"
         
-        if p_type == "link":
-            link_target = proj.get("target", "#")
-            action_attr = f'target="_blank"' 
-        elif p_type == "overlay":
+        if p_type == "overlay":
             link_target = "#"
             action_attr = f'data-type="overlay" data-overlay-id="{p_id}"'
+        else:
+            target = str(proj.get("target") or "#").strip()
+            if target in pages:
+                link_target = _rel_page_link(current_path, target)
+            else:
+                link_target = target
+            if link_target.startswith(("http://", "https://")):
+                action_attr = 'target="_blank" rel="noopener"'
+        
+        if p_type == "overlay":
+            # Pre-render overlay content
             content_file = proj.get("content_file", "")
             overlay_body = ""
             if content_file:
-                overlay_body = _render_markdown(_read_block(content_file))
+                cached = overlay_cache.get(content_file)
+                if cached is None:
+                    cached = _render_markdown(_read_block(content_file))
+                    overlay_cache[content_file] = cached
+                overlay_body = cached
             
+            title_id = f"overlay-title-{p_id}"
+            body_id = f"overlay-body-{p_id}"
             overlays.append(f"""
-<div class="project-overlay" id="overlay-{p_id}">
+<div class="project-overlay" id="overlay-{p_id}" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="{_escape(title_id)}" aria-describedby="{_escape(body_id)}">
   <div class="overlay-backdrop" data-close-overlay></div>
   <div class="overlay-content">
-    <button class="overlay-close" data-close-overlay>&times;</button>
+    <button class="overlay-close" type="button" aria-label="Close project details" data-close-overlay>&times;</button>
     <div class="overlay-scroll">
-      <h2>{_escape(t)}</h2>
+      <h2 id="{_escape(title_id)}">{_escape(t)}</h2>
       <img src="{_escape(img)}" alt="{_escape(t)}" class="overlay-hero">
-      <div class="overlay-body">{overlay_body}</div>
+      <div class="overlay-body" id="{_escape(body_id)}">{overlay_body}</div>
     </div>
   </div>
 </div>""")
 
-        cards.append(f"""
-<a href="{link_target}" class="project-card-v2 scroll-reveal" {action_attr}>
-  <div class="card-bg" data-bg="{_escape(img)}"></div>
-  <div class="card-content">
+        keyword_html = "".join(f"<span>{_escape(item)}</span>" for item in keywords_list)
+        keywords_block = f"<div class=\"tile-keywords\">{keyword_html}</div>" if keyword_html else ""
+        action_label = "Expand" if p_type == "overlay" else "Open"
+        if link_target.startswith(("http://", "https://")):
+            action_label = "Visit"
+        alt_media = ""
+        if alt_image:
+            alt_media = f"<div class=\"tile-media tile-media--alt\" style=\"background-image: url('{_escape(alt_image)}')\"></div>"
+        card_html = f"""
+<a href="{link_target}" class="profile-tile profile-tile--{_escape(tier)} project-card-v2 scroll-reveal" data-tier="{_escape(tier)}" {action_attr}>
+  <div class="tile-media" style="background-image: url('{_escape(primary_image)}')"></div>
+  {alt_media}
+  <div class="tile-scrim"></div>
+  <div class="tile-content">
     <h3>{_escape(t)}</h3>
-    <p class="keywords">{_escape(keywords)}</p>
-    <div class="card-hover-reveal">
-      <p>{_escape(desc)}</p>
-    </div>
+    {keywords_block}
+    <span class="tile-action">{action_label}</span>
   </div>
-</a>""")
+</a>"""
+        if tier == "upper":
+            upper_cards.append(card_html)
+        else:
+            lower_cards.append(card_html)
 
-    grid_html = "".join(cards)
+    upper_html = "".join(upper_cards)
+    lower_html = "".join(lower_cards)
     overlays_html = "".join(overlays)
+    
     section_id = _escape(section.get("section_id", "projects"))
     heading = _escape(section.get("title", "Projects"))
+    upper_row = f"<div class=\"profile-row profile-row--upper\">{upper_html}</div>" if upper_html else ""
+    lower_row = f"<div class=\"profile-row profile-row--lower\">{lower_html}</div>" if lower_html else ""
     
     return f"""
 <section class="content-section project-grid-section" id="{section_id}">
   <div class="v2-grid-container">
     <h2>{heading}</h2>
-    <div class="project-grid-v2-wrapper">
-      {grid_html}
+    <div class="profile-tiles">
+      {upper_row}
+      {lower_row}
     </div>
   </div>
   {overlays_html}
@@ -759,6 +832,42 @@ def _render_team_grid(section: dict[str, str], current_path: Path) -> str:
     <h2>{heading}</h2>
     <div class="team-grid">
       {"".join(cards)}
+    </div>
+  </div>
+</section>
+"""
+
+def _render_pub_list(section: dict[str, str], current_path: Path) -> str:
+    path = CONTENT_DIR / "publications.json"
+    if not path.exists(): return "<p>Missing publications.json</p>"
+    items = json.loads(path.read_text(encoding="utf-8"))
+    
+    rows = []
+    for p in items:
+        title = _escape(p.get("title", ""))
+        authors = _escape(p.get("authors", ""))
+        venue = _escape(p.get("venue", ""))
+        year = _escape(p.get("year", ""))
+        link = _escape(p.get("link", "#"))
+        
+        rows.append(f"""
+<div class="pub-row scroll-reveal">
+  <div class="pub-year">{year}</div>
+  <div class="pub-content">
+    <a href="{link}" class="pub-title" target="_blank">{title}</a>
+    <div class="pub-meta">{authors} — <span class="venue">{venue}</span></div>
+  </div>
+</div>""")
+
+    section_id = _escape(section.get("section_id", "publications"))
+    heading = _escape(section.get("title", "Publications"))
+    
+    return f"""
+<section class="content-section pub-section" id="{section_id}">
+  <div class="v2-grid-container">
+    <h2>{heading}</h2>
+    <div class="pub-list">
+      {"".join(rows)}
     </div>
   </div>
 </section>
@@ -802,7 +911,6 @@ def _render_research_grid(section: dict[str, str], current_path: Path) -> str:
   </div>
 </section>
 """
-
 
 def _render_linkhub_links(links: list[dict[str, str]]) -> str:
     if not links:
@@ -891,7 +999,7 @@ def _render_digest_list(section: dict[str, str], current_path: Path, digests: li
 
 def _render_home_overview(pages: dict[str, dict[str, object]], current_path: Path) -> str:
     cards = []
-    for slug in _nav_slugs(pages):
+    for slug in NAV_SLUGS:
         if slug in ("", "blog", "contact"):
             continue
         if slug not in pages:
@@ -964,7 +1072,7 @@ def _render_digest_page(digest: dict[str, str], pages: dict[str, dict[str, objec
 <body data-newsletter-mode="{_escape(site.get('newsletter_mode', 'local'))}" data-newsletter-url="{_escape(site.get('newsletter_provider_url', ''))}">
   <div class="page-shell">
     {header}
-    <main id="main-content">
+    <main>
       <section class="page-hero">
         <div class="page-hero-inner">
           <p class="eyebrow">Research Digest</p>
@@ -1001,11 +1109,11 @@ def _render_blog_post(post: dict[str, str], pages: dict[str, dict[str, object]])
     body_html = _render_paragraphs(post.get("body", ""))
     doc = f"""<!doctype html>
 <html lang=\"en\">
-{_render_head(post.get('title', ''), css_href, site.get('meta_description', ''))}
-<body data-newsletter-mode="{_escape(site.get('newsletter_mode', 'local'))}" data-newsletter-url="{_escape(site.get('newsletter_provider_url', ''))}">
+{_render_head(post.get('title', ''), css_href, _read_site_config().get('meta_description', ''))}
+<body data-newsletter-mode="{_escape(_read_site_config().get('newsletter_mode', 'local'))}" data-newsletter-url="{_escape(_read_site_config().get('newsletter_provider_url', ''))}">
   <div class="page-shell">
     {header}
-    <main id="main-content">
+    <main>
       <section class="page-hero">
         <div class="page-hero-inner">
           <p class="eyebrow">Institute Blog</p>
@@ -1103,36 +1211,6 @@ def _build_css(site: dict[str, Any]) -> str:
         .module-header {{ border-bottom: 1px solid #30363d; padding-bottom: 0.5rem; margin-bottom: 1rem; font-weight: bold; color: var(--primary); }}
         """
 
-    elif layout_variant == "swarm":
-        theme_overrides = f"""
-        /* Mescia / Swarm Theme */
-        body {{
-            background-color: {cream};
-            background-image:
-                radial-gradient(circle at top left, rgba(32, 214, 199, 0.15), transparent 55%),
-                radial-gradient(circle at 80% 20%, rgba(255, 184, 77, 0.12), transparent 60%),
-                radial-gradient(circle at 20% 80%, rgba(106, 247, 228, 0.12), transparent 55%);
-            color: {text_main};
-        }}
-        .site-header {{
-            background: rgba(8, 12, 18, 0.75);
-            border-bottom: 1px solid rgba(32, 214, 199, 0.2);
-        }}
-        .logo {{ color: {text_main}; }}
-        .nav a {{ color: {text_muted}; }}
-        .nav a:hover, .nav a.active {{ color: {primary_bright}; }}
-        .cta {{
-            background: rgba(32, 214, 199, 0.2);
-            border: 1px solid rgba(106, 247, 228, 0.5);
-            color: {text_main};
-        }}
-        .cta:hover {{ background: rgba(106, 247, 228, 0.4); }}
-        :root {{
-            --card: rgba(12, 20, 28, 0.85);
-            --glass: rgba(12, 20, 28, 0.7);
-        }}
-        """
-
     elif layout_variant == "standard" and "holobiontic" in site.get("site_name", "").lower():
         theme_overrides = f"""
         /* Holobiontic / Bio Theme */
@@ -1185,183 +1263,475 @@ def _build_css(site: dict[str, Any]) -> str:
   --glass: rgba(255, 255, 255, 0.6);
   --shadow: {primary_dark}1a;
   
-  --font-heading: "Space Grotesk", sans-serif;
-  --font-body: "Manrope", sans-serif;
+  --font-heading: "Cormorant Garamond", serif;
+  --font-body: "Outfit", sans-serif;
   --radius: 8px;
   --max-width: 1200px;
 }}
 
-/* Base */
+/* Base & Reset */
+*, *::before, *::after {{ box-sizing: border-box; }}
+html {{ scroll-behavior: smooth; }}
 body {{
   margin: 0;
   font-family: var(--font-body);
   background: var(--paper);
   color: var(--text-main);
-  line-height: 1.6;
+  line-height: 1.7;
+  font-feature-settings: "kern", "liga", "clig", "calt";
   transition: background-color 0.3s, color 0.3s;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }}
 
 /* Typography */
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Outfit:wght@300;400;500;600&family=Fira+Code:wght@400;500&family=Playfair+Display:wght@400;700&display=swap');
 
-h1, h2, h3 {{
+h1, h2, h3, h4, h5, h6 {{
   font-family: var(--font-heading);
   color: var(--primary);
-  margin-top: 0;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  line-height: 1.2;
 }}
 
-h1 {{ font-size: 3.5rem; letter-spacing: -0.01em; margin-bottom: 0.5rem; line-height: 1.1; }}
-h2 {{ font-size: 2.2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--gold); display: inline-block; padding-bottom: 5px; }}
-a {{ color: var(--primary); text-decoration: none; font-weight: 500; transition: color 0.2s; }}
-a:hover {{ color: var(--primary-bright); }}
+h1 {{ font-size: clamp(2.5rem, 5vw, 4.5rem); letter-spacing: -0.02em; margin-bottom: 1rem; }}
+h2 {{ font-size: clamp(2rem, 4vw, 3rem); padding-bottom: 0.5rem; border-bottom: 1px solid var(--gold); display: inline-block; }}
+h3 {{ font-size: 1.75rem; }}
+p {{ margin-bottom: 1.5rem; max-width: 70ch; }}
+
+a {{ color: var(--primary); text-decoration: none; font-weight: 500; transition: all 0.2s ease; position: relative; }}
+a:not(.button):hover {{ color: var(--primary-bright); }}
+a:not(.button)::after {{
+    content: ''; position: absolute; width: 100%; transform: scaleX(0); height: 1px; bottom: -2px; left: 0;
+    background-color: var(--primary-bright); transform-origin: bottom right; transition: transform 0.25s ease-out;
+}}
+a:not(.button):hover::after {{ transform: scaleX(1); transform-origin: bottom left; }}
 
 /* Layout */
 .page-shell {{ min-height: 100vh; display: flex; flex-direction: column; }}
-main {{ flex: 1; padding-top: 80px; width: 100%; max-width: var(--max-width); margin: 0 auto; padding-left: 5vw; padding-right: 5vw; box-sizing: border-box; }}
+main {{ flex: 1; padding-top: 80px; width: 100%; max-width: var(--max-width); margin: 0 auto; padding-left: 5vw; padding-right: 5vw; }}
 
 /* Header */
 .site-header {{
   position: fixed;
+  top: 0; left: 0; width: 100%;
+  padding: 1rem 5vw;
+  display: flex; justify-content: space-between; align-items: center;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  transition: all 0.3s ease;
+}}
+.site-header.scrolled {{ padding: 0.75rem 5vw; background: rgba(255, 255, 255, 0.95); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }}
+
+.logo {{ font-family: var(--font-heading); font-size: 1.5rem; font-weight: 700; color: var(--primary); letter-spacing: 0.05em; text-transform: uppercase; }}
+.nav {{ display: flex; gap: 2rem; }}
+.nav a {{ color: var(--text-muted); text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.1em; font-weight: 600; }}
+.nav a:hover, .nav a.active {{ color: var(--primary); }}
+.nav a::after {{ display: none; }} /* Disable underline for nav items */
+
+/* Burger Menu */
+.header-right {{ display: flex; align-items: center; gap: 1rem; }}
+.burger-toggle {{
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 30px;
+  height: 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  z-index: 1001;
+}}
+.burger-toggle span {{
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: var(--text-main);
+  transition: transform 0.3s ease;
+}}
+.burger-menu-overlay {{
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  padding: 15px 5vw;
-  box-sizing: border-box;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  background: rgba(10, 10, 10, 0.95);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
   z-index: 1000;
-  background: var(--header-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 6rem 2rem 3rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
 }}
-
-.logo {{
+.burger-menu-overlay.active {{
+  opacity: 1;
+  pointer-events: all;
+}}
+.burger-close {{
+  position: absolute;
+  top: 2rem;
+  right: 2rem;
+  font-size: 3rem;
+  background: none;
+  border: none;
+  color: var(--text-main);
+  cursor: pointer;
+}}
+.burger-nav {{
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  text-align: center;
+}}
+.burger-nav a {{
   font-family: var(--font-heading);
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--primary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: 2rem;
+  color: var(--text-main);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}}
+.burger-nav a:hover {{
+  color: var(--gold);
+}}
+.burger-nav hr {{
+  width: 50%;
+  margin: 1rem auto;
+  border: 0;
+  border-top: 1px solid var(--card-border);
 }}
 
-.nav {{ display: flex; gap: 30px; }}
-.nav a {{ color: var(--text-muted); text-transform: uppercase; font-size: 13px; letter-spacing: 0.1em; font-weight: 600; }}
-.nav a:hover, .nav a.active {{ color: var(--primary); }}
-.cta {{
-  padding: 10px 22px;
-  border-radius: 999px;
-  border: 1px solid var(--primary);
-  color: var(--primary);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 12px;
-  font-weight: 600;
+/* Profile Tiles */
+.profile-tiles {{
+  display: grid;
+  gap: 2rem;
+  margin-top: 2.5rem;
 }}
-.cta:hover {{ background: var(--primary); color: #fff; }}
+.profile-row {{
+  gap: 1.5rem;
+}}
+.profile-row--upper {{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  perspective: 1200px;
+}}
+.profile-row--lower {{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}}
+.profile-tile {{
+  --tile-tilt-x: 0deg;
+  --tile-tilt-y: 0deg;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 240px;
+  border-radius: 18px;
+  overflow: hidden;
+  color: #f8f7f4;
+  text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.4);
+  box-shadow: 0 24px 50px -30px rgba(0, 0, 0, 0.6);
+  transform-style: preserve-3d;
+  transition: transform 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease, flex 0.45s ease;
+}}
+.profile-tile::before {{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.2), transparent 45%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}}
+.profile-tile::after {{
+  content: "";
+  position: absolute;
+  inset: 12% 6% auto 6%;
+  height: 55%;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.08);
+  filter: blur(28px);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}}
+.profile-tile:hover {{
+  transform: translateY(-10px) rotateX(var(--tile-tilt-x)) rotateY(var(--tile-tilt-y));
+  box-shadow: 0 30px 60px -28px rgba(0, 0, 0, 0.7);
+  border-color: rgba(255, 255, 255, 0.35);
+}}
+.profile-tile:hover::before,
+.profile-tile:hover::after {{
+  opacity: 1;
+}}
+.profile-row--upper .profile-tile {{
+  flex: 1 1 240px;
+  min-height: 320px;
+  --tile-tilt-x: 4deg;
+  --tile-tilt-y: 0deg;
+}}
+.profile-row--upper .profile-tile:hover {{
+  flex: 1.55 1 240px;
+}}
+.profile-row--lower .profile-tile {{
+  min-height: 210px;
+}}
+.tile-media {{
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: brightness(0.6) saturate(0.95);
+  transition: transform 0.6s ease, filter 0.4s ease;
+}}
+.tile-media--alt {{
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}}
+.profile-tile:hover .tile-media {{
+  transform: scale(1.06);
+  filter: brightness(0.5) saturate(1.1);
+}}
+.profile-tile:hover .tile-media--alt {{
+  opacity: 1;
+}}
+.tile-scrim {{
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.7) 70%);
+  transform: translateZ(10px);
+}}
+.tile-content {{
+  position: relative;
+  z-index: 2;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transform: translateZ(26px);
+}}
+.tile-content h3 {{
+  margin: 0;
+  font-size: 1.5rem;
+  color: #f8f7f4;
+}}
+.tile-keywords {{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}}
+.tile-keywords span {{
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.45);
+}}
+.tile-action {{
+  font-size: 0.7rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}}
+
+/* Project Overlays */
+.project-overlay {{
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  perspective: 1200px;
+}}
+.project-overlay.active {{
+  opacity: 1;
+  pointer-events: all;
+}}
+.overlay-backdrop {{
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}}
+.overlay-content {{
+  position: relative;
+  width: min(900px, 92vw);
+  max-height: 85vh;
+  background: var(--paper);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transform: translateY(24px) scaleY(0.96) rotateX(-8deg);
+  transform-origin: top center;
+  transition: transform 0.45s ease, opacity 0.35s ease;
+}}
+.project-overlay.active .overlay-backdrop {{
+  opacity: 1;
+}}
+.project-overlay.active .overlay-content {{
+  opacity: 1;
+  transform: translateY(0) scaleY(1) rotateX(0deg);
+}}
+.overlay-close {{
+  position: absolute;
+  top: 1rem;
+  right: 1.5rem;
+  font-size: 2rem;
+  background: none;
+  border: none;
+  color: var(--text-main);
+  cursor: pointer;
+  z-index: 10;
+}}
+.overlay-scroll {{
+  overflow-y: auto;
+  padding: 2rem;
+}}
+.overlay-hero {{
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+}}
+.overlay-body {{
+  font-family: var(--font-body);
+  line-height: 1.6;
+}}
+.overlay-body h3 {{
+  font-family: var(--font-heading);
+  margin-top: 1.5rem;
+}}
+
+/* Scroll Reveal */
+.scroll-reveal {{
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}}
+.scroll-reveal.revealed {{
+  opacity: 1;
+  transform: translateY(0);
+}}
+
+@media (max-width: 900px) {{
+  .profile-row--upper .profile-tile {{
+    flex: 1 1 100%;
+  }}
+  .profile-row--upper .profile-tile:hover {{
+    flex: 1 1 100%;
+  }}
+}}
+
+@media (max-width: 768px) {{
+  .burger-nav a {{
+    font-size: 1.5rem;
+  }}
+  .burger-close {{
+    top: 1.5rem;
+    right: 1.25rem;
+    font-size: 2.5rem;
+  }}
+}}
+
+@media (prefers-reduced-motion: reduce) {{
+  .profile-tile,
+  .overlay-content,
+  .scroll-reveal {{
+    transition: none;
+    transform: none;
+  }}
+  .profile-tile:hover {{
+    transform: none;
+  }}
+  .tile-media,
+  .tile-media--alt {{
+    transition: none;
+  }}
+}}
 
 /* Components */
-.card, .profile-card {{
+.card {{
   background: var(--card);
   border: 1px solid var(--card-border);
   border-radius: var(--radius);
-  padding: 30px;
-  box-shadow: 0 4px 20px var(--shadow);
-  transition: transform 0.3s, box-shadow 0.3s;
+  padding: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.02);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }}
-
-.card:hover {{ transform: translateY(-3px); box-shadow: 0 8px 30px var(--shadow); }}
+.card:hover {{ transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.05), 0 10px 10px -5px rgba(0,0,0,0.02); border-color: var(--gold); }}
 
 .button {{
-  padding: 12px 28px;
-  background: var(--primary);
-  color: #fff;
-  border-radius: 4px;
-  text-transform: uppercase;
-  font-size: 13px;
-  letter-spacing: 0.1em;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  display: inline-block;
-  text-align: center;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0.75rem 1.5rem;
+  background: var(--primary); color: #fff;
+  border-radius: 4px; border: 1px solid var(--primary);
+  text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.1em; font-weight: 600;
+  cursor: pointer; transition: all 0.2s ease;
 }}
-.button:hover {{ background: var(--primary-bright); color: #fff; }}
-.button.ghost {{ background: transparent; border: 1px solid var(--primary); color: var(--primary); }}
+.button:hover {{ background: var(--primary-bright); border-color: var(--primary-bright); transform: translateY(-1px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
+.button.ghost {{ background: transparent; color: var(--primary); }}
 .button.ghost:hover {{ background: var(--primary); color: #fff; }}
 
 /* Grid Layouts */
-.content-grid {{ display: grid; grid-template-columns: 1fr; gap: 40px; }}
+.content-grid {{ display: grid; grid-template-columns: 1fr; gap: 3rem; margin: 4rem 0; }}
 @media (min-width: 768px) {{
   .content-grid {{ grid-template-columns: 1fr 1fr; align-items: center; }}
   .content-grid > div:first-child {{ order: 1; }}
   .content-grid > div:last-child {{ order: 2; }}
 }}
 
-.card-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 30px; margin: 40px 0; }}
-
-/* Section Styling */
-.content-section {{
-  margin: 60px 0;
-  padding: 40px;
-  background: var(--glass);
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius);
-  box-shadow: 0 12px 30px -20px var(--shadow);
-}}
-.content-section .content-grid {{ align-items: flex-start; }}
-.content-section h2 {{ margin-top: 0; }}
-.content-section ul {{
-  list-style: none;
-  padding: 0;
-  margin: 20px 0 0;
-  display: grid;
-  gap: 16px;
-}}
-.content-section ul li {{
-  padding: 16px 18px;
-  border-radius: calc(var(--radius) - 2px);
-  border: 1px solid var(--card-border);
-  background: var(--card);
-  box-shadow: 0 6px 16px -12px var(--shadow);
-}}
-.content-section blockquote {{
-  margin: 24px 0;
-  padding: 18px 22px;
-  border-left: 4px solid var(--gold);
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: var(--radius);
-}}
-
-/* Forms */
-input, textarea {{
-  width: 100%;
-  padding: 15px;
-  border: 1px solid var(--card-border);
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.8);
-  font-family: var(--font-body);
-  margin-bottom: 20px;
-  box-sizing: border-box;
-}}
-input:focus, textarea:focus {{ border-color: var(--primary); outline: none; box-shadow: 0 0 0 2px var(--card-border); }}
+.card-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2rem; margin: 3rem 0; }}
 
 /* Footer */
 .site-footer {{
-  background: var(--primary-dark);
-  color: var(--cream);
-  padding: 60px 5vw;
-  margin-top: 60px;
+  background: var(--primary-dark); color: var(--cream);
+  padding: 4rem 5vw; margin-top: 6rem;
 }}
 .site-footer a {{ color: var(--gold); opacity: 0.8; }}
 .site-footer a:hover {{ opacity: 1; }}
-.footer-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 40px; }}
-.footer-title {{ font-family: var(--font-heading); font-size: 1.2rem; margin-bottom: 1rem; color: #fff; }}
+.footer-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 3rem; }}
+.footer-title {{ font-family: var(--font-heading); font-size: 1.25rem; margin-bottom: 1.5rem; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem; }}
 
-/* Images */
-img {{ max-width: 100%; height: auto; display: block; }}
-.image-frame {{ margin: 0; overflow: hidden; border-radius: var(--radius); box-shadow: 0 10px 40px -10px var(--shadow); }}
+/* Utilities */
+.sr-only {{ position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }}
+.image-frame {{ border-radius: var(--radius); overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }}
+.image-frame img {{ width: 100%; height: auto; display: block; transition: transform 0.5s ease; }}
+.image-frame:hover img {{ transform: scale(1.03); }}
+
+/* Form Elements */
+input, textarea {{
+  width: 100%; padding: 1rem;
+  border: 1px solid var(--card-border); border-radius: 4px;
+  background: rgba(255,255,255,0.8);
+  font-family: var(--font-body); font-size: 1rem;
+  margin-bottom: 1.5rem; transition: all 0.2s;
+}}
+input:focus, textarea:focus {{ border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(101, 20, 28, 0.1); }}
 
 {theme_overrides}
 """
@@ -1399,6 +1769,201 @@ function smoothScroll() {
       event.preventDefault();
       target.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth' });
     });
+  });
+}
+
+function setupScrollReveal() {
+  const revealItems = document.querySelectorAll('.scroll-reveal');
+  if (!revealItems.length) return;
+  if (prefersReduced) {
+    revealItems.forEach((item) => item.classList.add('revealed'));
+    return;
+  }
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('revealed');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+
+  revealItems.forEach((item) => observer.observe(item));
+}
+
+function setupTileBackgrounds() {
+  document.querySelectorAll('[data-bg]').forEach((node) => {
+    const url = node.getAttribute('data-bg');
+    if (!url || node.style.backgroundImage) return;
+    node.style.backgroundImage = `url('${url}')`;
+  });
+}
+
+function setupTileTilt() {
+  if (prefersReduced) return;
+  const tiles = document.querySelectorAll('.profile-row--upper .profile-tile');
+  tiles.forEach((tile) => {
+    let frame = null;
+    const handleMove = (event) => {
+      const rect = tile.getBoundingClientRect();
+      const x = (event.clientX - rect.left) / rect.width;
+      const y = (event.clientY - rect.top) / rect.height;
+      const tiltX = (0.5 - y) * 10;
+      const tiltY = (x - 0.5) * 12;
+      if (frame) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        tile.style.setProperty('--tile-tilt-x', `${tiltX.toFixed(2)}deg`);
+        tile.style.setProperty('--tile-tilt-y', `${tiltY.toFixed(2)}deg`);
+      });
+    };
+    const handleLeave = () => {
+      if (frame) cancelAnimationFrame(frame);
+      tile.style.setProperty('--tile-tilt-x', '0deg');
+      tile.style.setProperty('--tile-tilt-y', '0deg');
+    };
+    tile.addEventListener('mousemove', handleMove);
+    tile.addEventListener('mouseleave', handleLeave);
+  });
+}
+
+function setupOverlays() {
+  const focusableSelector = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex=\"-1\"])';
+  const focusCleanupMap = new WeakMap();
+  const focusReturnMap = new WeakMap();
+  const burgerToggle = document.querySelector('.burger-toggle');
+  if (burgerToggle) {
+    burgerToggle.setAttribute('aria-expanded', 'false');
+  }
+
+  const getFocusable = (container) => Array.from(container.querySelectorAll(focusableSelector));
+
+  const trapFocus = (container) => {
+    const focusables = getFocusable(container);
+    if (!focusables.length) {
+      return () => {};
+    }
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const handler = (event) => {
+      if (event.key !== 'Tab') return;
+      if (focusables.length === 1) {
+        event.preventDefault();
+        first.focus();
+        return;
+      }
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    container.addEventListener('keydown', handler);
+    return () => container.removeEventListener('keydown', handler);
+  };
+
+  const openOverlay = (overlay, trigger) => {
+    if (!overlay || overlay.classList.contains('active')) return;
+    overlay.classList.add('active');
+    overlay.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    focusReturnMap.set(overlay, trigger || document.activeElement);
+    const cleanup = trapFocus(overlay);
+    focusCleanupMap.set(overlay, cleanup);
+    const focusables = getFocusable(overlay);
+    if (focusables.length) {
+      focusables[0].focus({ preventScroll: true });
+    } else {
+      overlay.setAttribute('tabindex', '-1');
+      overlay.focus({ preventScroll: true });
+    }
+  };
+
+  const closeOverlay = (overlay) => {
+    if (!overlay || !overlay.classList.contains('active')) return;
+    overlay.classList.remove('active');
+    overlay.setAttribute('aria-hidden', 'true');
+    const cleanup = focusCleanupMap.get(overlay);
+    if (cleanup) cleanup();
+    focusCleanupMap.delete(overlay);
+    const returnTarget = focusReturnMap.get(overlay);
+    focusReturnMap.delete(overlay);
+    if (!document.querySelector('.project-overlay.active, .burger-menu-overlay.active')) {
+      document.body.style.overflow = '';
+    }
+    if (returnTarget && typeof returnTarget.focus === 'function') {
+      returnTarget.focus({ preventScroll: true });
+    }
+  };
+
+  window.toggleBurgerMenu = function () {
+    const overlay = document.getElementById('burger-menu');
+    if (overlay) {
+      if (overlay.classList.contains('active')) {
+        closeOverlay(overlay);
+        if (burgerToggle) burgerToggle.setAttribute('aria-expanded', 'false');
+      } else {
+        openOverlay(overlay, burgerToggle);
+        if (burgerToggle) burgerToggle.setAttribute('aria-expanded', 'true');
+      }
+    }
+  };
+
+  document.querySelectorAll('[data-type=\"overlay\"]').forEach((trigger) => {
+    trigger.addEventListener('click', (event) => {
+      event.preventDefault();
+      const overlayId = trigger.getAttribute('data-overlay-id');
+      const overlay = document.getElementById(`overlay-${overlayId}`);
+      if (overlay) {
+        openOverlay(overlay, trigger);
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-close-overlay]').forEach((closer) => {
+    closer.addEventListener('click', () => {
+      const overlay = closer.closest('.project-overlay');
+      if (overlay) {
+        closeOverlay(overlay);
+      }
+    });
+  });
+
+  document.querySelectorAll('.project-overlay, .burger-menu-overlay').forEach((overlay) => {
+    overlay.addEventListener('pointerdown', (event) => {
+      if (overlay.classList.contains('project-overlay')) {
+        if (event.target.classList.contains('overlay-backdrop') || event.target === overlay) {
+          closeOverlay(overlay);
+        }
+        return;
+      }
+      if (event.target === overlay) {
+        closeOverlay(overlay);
+        if (burgerToggle) burgerToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+  });
+
+  const burgerMenu = document.getElementById('burger-menu');
+  if (burgerMenu) {
+    burgerMenu.querySelectorAll('a').forEach((link) => {
+      link.addEventListener('click', () => {
+        closeOverlay(burgerMenu);
+        if (burgerToggle) burgerToggle.setAttribute('aria-expanded', 'false');
+      });
+    });
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      document.querySelectorAll('.project-overlay.active, .burger-menu-overlay.active').forEach((overlay) => {
+        closeOverlay(overlay);
+        if (overlay.id === 'burger-menu' && burgerToggle) {
+          burgerToggle.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
   });
 }
 
@@ -1503,6 +2068,10 @@ function setupContactForm() {
 
 window.addEventListener('DOMContentLoaded', () => {
   revealOnScroll();
+  setupScrollReveal();
+  setupTileBackgrounds();
+  setupTileTilt();
+  setupOverlays();
   smoothScroll();
   setupNewsletter();
   setupContactForm();
@@ -1544,31 +2113,61 @@ def _render_archive_layout(site: dict[str, str], pages: dict[str, dict[str, obje
 """
 
 
+def _render_mescia_landing(site: dict[str, str], pages: dict[str, dict[str, object]], current_path: Path) -> str:
+    hero_title = _escape(site.get("site_name", "Mescia"))
+    tagline = _escape(site.get("site_tagline", ""))
+    
+    # Generate navigation zones data
+    zones_html = ""
+    for slug, page in pages.items():
+        if slug == "": continue
+        title = _escape(page.get("title", slug.title()))
+        url = _escape(_rel_page_link(current_path, slug))
+        # Data attributes for the JS to pick up
+        zones_html += f'<a href="{url}" class="landing-zone" data-label="{title}"><span class="zone-label">{title}</span></a>'
+        
+    return f"""
+      <section class="mescia-landing">
+        <canvas id="mescia-canvas"></canvas>
+        <div class="mescia-overlay">
+            <div class="landing-zones-container">
+                {zones_html}
+            </div>
+            <div class="main-entrance">
+                <h1>{hero_title}</h1>
+                <p>{tagline}</p>
+                <a href="#research" class="enter-button" id="enter-site-btn">Enter</a>
+            </div>
+        </div>
+      </section>
+"""
+
+
+
+
 def _render_swarm_layout(site: dict[str, str], pages: dict[str, dict[str, object]], current_path: Path) -> str:
     hero_title = _escape(site.get("site_name", "Swarm"))
     tagline = _escape(site.get("site_tagline", ""))
-    blurb = _escape(site.get("contact_blurb", ""))
     
     # Generate content nodes for the swarm layout
     nodes_html = []
     
     # Main content node
     nodes_html.append(f"""
-    <div class="swarm-node main-node" style="top: 16%; left: 28%; width: 44%;">
+    <div class="swarm-node main-node" style="top: 20%; left: 30%; width: 40%;">
         <h1>{hero_title}</h1>
         <p class="subtitle">{tagline}</p>
-        <p>{blurb}</p>
+        <p>{_escape(site.get("contact_blurb", ""))}</p>
     </div>
     """)
     
     # Add nodes for each page
     node_positions = [
-        {"top": "8%", "left": "8%"},
-        {"top": "70%", "left": "12%"},
-        {"top": "44%", "left": "72%"},
-        {"top": "78%", "left": "62%"},
-        {"top": "12%", "left": "64%"},
-        {"top": "30%", "left": "10%"}
+        {"top": "10%", "left": "10%"},
+        {"top": "70%", "left": "15%"},
+        {"top": "40%", "left": "70%"},
+        {"top": "75%", "left": "65%"},
+        {"top": "15%", "left": "60%"}
     ]
     
     for i, (slug, page) in enumerate(pages.items()):
@@ -1587,14 +2186,14 @@ def _render_swarm_layout(site: dict[str, str], pages: dict[str, dict[str, object
     
     # Add "Live Pulse" section
     nodes_html.append(f"""
-    <div class="swarm-node pulse-node" style="top: 58%; left: 38%;">
-        <h3>Signal Pulse</h3>
+    <div class="swarm-node pulse-node" style="top: 60%; left: 40%;">
+        <h3>Live Pulse</h3>
         <div class="pulse-content">
-            <p>Live telemetry from coordination experiments</p>
+            <p>Real-time activity feed from agent logs</p>
             <div class="activity-log">
-                <div class="log-entry">Cluster topology stabilized</div>
-                <div class="log-entry">Consensus drift detected</div>
-                <div class="log-entry">Memory lattice refreshed</div>
+                <div class="log-entry">New research thread initiated</div>
+                <div class="log-entry">Data sync completed</div>
+                <div class="log-entry">Model training in progress</div>
             </div>
         </div>
     </div>
@@ -1602,32 +2201,9 @@ def _render_swarm_layout(site: dict[str, str], pages: dict[str, dict[str, object
     
     return f"""
     <section class="swarm-layout">
-        <canvas id="swarm-canvas"></canvas>
-        <div class="swarm-canvas-overlay">
+        <div class="swarm-canvas">
             <div class="swarm-grid"></div>
-            <div class="swarm-orbit"></div>
             {''.join(nodes_html)}
-            <aside class="swarm-dock">
-                <div class="swarm-panel">
-                    <p class="swarm-kicker">Research Clusters</p>
-                    <h2>Coordination Stack</h2>
-                    <ul>
-                        <li>Adaptive incentives and agent alignment</li>
-                        <li>Collective memory and semantic drift</li>
-                        <li>Protocol ecology and resilience testing</li>
-                    </ul>
-                </div>
-                <div class="swarm-panel">
-                    <p class="swarm-kicker">Method Stack</p>
-                    <h2>Simulation Studio</h2>
-                    <ul>
-                        <li>Agent-based worlds with live telemetry</li>
-                        <li>Network topology and phase transition mapping</li>
-                        <li>Field probes embedded in civic systems</li>
-                    </ul>
-                </div>
-                <a class="swarm-cta" href="{_escape(_rel_page_link(current_path, 'research'))}">Enter research</a>
-            </aside>
         </div>
     </section>
     """
@@ -1720,9 +2296,6 @@ def _render_sentient_layout(site: dict[str, str], pages: dict[str, dict[str, obj
         <div class="terminal-title">system@sentient:~$ {hero_title}</div>
     </div>
     <div class="terminal-body">
-        <div class="terminal-vis-layer">
-            <img src="{_escape(_rel_link(current_path, Path("assets/img/sentient_hero_cyberpunk_crt_1767665692747.png")))}" alt="System Visualization" />
-        </div>
         <div class="terminal-prompt">
             <span class="prompt-user">user@sentient</span>
             <span class="prompt-symbol">$</span>
@@ -1790,38 +2363,6 @@ def _render_sentient_layout(site: dict[str, str], pages: dict[str, dict[str, obj
         </div>
     </section>
     """
-
-
-def _render_mescia_landing(site: dict[str, str], pages: dict[str, dict[str, object]], current_path: Path) -> str:
-    hero_title = _escape(site.get("site_name", "Mescia"))
-    tagline = _escape(site.get("site_tagline", ""))
-    
-    # Generate navigation zones data
-    zones_html = ""
-    for slug, page in pages.items():
-        if slug == "": continue
-        title = _escape(page.get("title", slug.title()))
-        url = _escape(_rel_page_link(current_path, slug))
-        # Data attributes for the JS to pick up
-        zones_html += f'<a href="{url}" class="landing-zone" data-label="{title}"><span class="zone-label">{title}</span></a>'
-        
-    return f"""
-      <section class="mescia-landing">
-        <canvas id="mescia-canvas"></canvas>
-        <div class="mescia-overlay">
-            <div class="landing-zones-container">
-                {zones_html}
-            </div>
-            <div class="main-entrance">
-                <h1>{hero_title}</h1>
-                <p>{tagline}</p>
-                <a href="#research" class="enter-button" id="enter-site-btn">Enter</a>
-            </div>
-        </div>
-      </section>
-"""
-
-
 def _build_placeholder_svg(label: str) -> str:
     safe_label = _escape(label)
     return f"""<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 600 400\" role=\"img\" aria-label=\"{safe_label}\">
@@ -2148,16 +2689,12 @@ def build_site() -> None:
         extra_css = ""
         if slug == "" and layout_variant == "mescia_landing":
             extra_css = f'<link rel="stylesheet" href="{_escape(_rel_link(current_path, Path("assets/css/landing.css")))}" />'
+        # Include extra CSS for new layout variants
+        if slug == "" and layout_variant in {"archive", "swarm", "rhizome", "sentient"}:
+            extra_css += f'<link rel="stylesheet" href="{_escape(_rel_link(current_path, Path("assets/css/extra_layouts.css")))}" />'
 
         header = _render_header(slug, pages, current_path, site)
         footer = _render_footer(site, pages, current_path, links)
-        
-        body_scripts = f'<script src="{_escape(js_href)}"></script>'
-        if slug == "" and layout_variant == "swarm":
-            body_scripts += f'\n<script src="{_escape(_rel_link(current_path, Path("assets/js/swarm.js")))}"></script>'
-        if slug == "" and layout_variant == "mescia_landing":
-            body_scripts += f'\n<script src="{_escape(_rel_link(current_path, Path("assets/js/landing.js")))}"></script>'
-        
         sections = list(page["sections"])
         if slug == "" and not show_digest_home:
             sections = [section for section in sections if section.get("kind") != "digest_list"]
@@ -2207,12 +2744,6 @@ def build_site() -> None:
         if slug == "":
             if layout_variant == "archive":
                 homepage_body = _render_archive_layout(site, pages, current_path, hero_heading, hero_body, sections_html, overview_html, page_body_html)
-            elif layout_variant == "swarm":
-                homepage_body = _render_swarm_layout(site, pages, current_path)
-            elif layout_variant == "rhizome":
-                homepage_body = _render_rhizome_layout(site, pages, current_path)
-            elif layout_variant == "sentient":
-                homepage_body = _render_sentient_layout(site, pages, current_path)
             elif layout_variant == "linkhub":
                 homepage_body = f"""
       <section class="linkhub">
@@ -2228,6 +2759,12 @@ def build_site() -> None:
 """
             elif layout_variant == "mescia_landing":
                 homepage_body = _render_mescia_landing(site, pages, current_path)
+            elif layout_variant == "swarm":
+                homepage_body = _render_swarm_layout(site, pages, current_path)
+            elif layout_variant == "rhizome":
+                homepage_body = _render_rhizome_layout(site, pages, current_path)
+            elif layout_variant == "sentient":
+                homepage_body = _render_sentient_layout(site, pages, current_path)
             elif layout_variant == "profile":
                 homepage_body = f"""
       <section class="hero">
@@ -2329,12 +2866,14 @@ def build_site() -> None:
 <body data-newsletter-mode="{_escape(site.get('newsletter_mode', 'local'))}" data-newsletter-url="{_escape(site.get('newsletter_provider_url', ''))}">
   <div class="page-shell">
     {header}
-    <main id="main-content">
+    <main>
       {homepage_body}
     </main>
     {footer}
   </div>
-  {body_scripts}
+  <script src="{_escape(js_href)}"></script>
+  {f'<script src="{_escape(_rel_link(current_path, Path("assets/js/landing.js")))}"></script>' if slug == "" and layout_variant == "mescia_landing" else ''}
+  {f'<script src="{_escape(_rel_link(current_path, Path("assets/js/optimize.js")))}"></script>' if slug == "" else ''}
 </body>
 </html>
 """
